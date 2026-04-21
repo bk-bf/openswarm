@@ -1169,8 +1169,12 @@ async function loadSettingsData() {
     ? settingsRes.value.model : '';
   settingsCurrentModel = current;
 
-  if (modelsRes.status !== 'fulfilled' || !Array.isArray(modelsRes.value)) {
-    sel.innerHTML = '<option value="">failed to load models</option>';
+  if (modelsRes.status !== 'fulfilled' || !Array.isArray(modelsRes.value) || modelsRes.value.length === 0) {
+    sel.innerHTML = `<option value="">failed to load models</option>`;
+    document.getElementById('settings-status').innerHTML =
+      `<span style="color:var(--red)">could not load model list</span>
+       <button class="icon-btn" style="margin-left:8px;font-size:9px;padding:2px 6px"
+         onclick="loadSettingsData()">retry</button>`;
     return;
   }
 

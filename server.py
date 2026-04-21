@@ -20,7 +20,8 @@ BASE_DIR = Path(__file__).parent.resolve()
 SETTINGS_FILE = BASE_DIR / "settings.json"
 
 # Cache for model list — populated once at startup and reused.
-_models_cache: list | None = None
+_models_cache: list = []
+_models_ready = threading.Event()
 
 
 # ── API handlers ──────────────────────────────────────────────────────────────
@@ -36,19 +37,23 @@ def load_models_cache():
             text=True,
             timeout=30,
         )
-        _models_cache = [
+        models = [
             line.strip()
             for line in result.stdout.splitlines()
             if line.strip() and not line.startswith("#")
         ]
+        _models_cache = models
         print(f"models cached: {len(_models_cache)} entries", flush=True)
     except Exception as e:
         print(f"WARNING: could not load model list: {e}", flush=True)
-        _models_cache = []
+    finally:
+        _models_ready.set()
 
 
 def api_get_models() -> tuple[int, list]:
-    return 200, _models_cache or []
+    # Wait up to 20s for the background cache to be ready
+    _models_ready.wait(timeout=20)
+    return 200, _models_cache
 
 
 def api_get_settings() -> tuple[int, dict]:
