@@ -51,88 +51,8 @@
     flex-shrink: 0;
     background: var(--bg);
     z-index: 10;
-    position: relative;  /* anchor for progress bar */
+  position: relative;  /* anchor for progress bar */
   }
-
-  .logo {
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    color: var(--text);
-    flex-shrink: 0;
-  }
-  .logo span { color: var(--blue); }
-
-  .header-meta {
-    display: flex;
-    gap: 14px;
-    align-items: center;
-    margin-left: auto;
-    flex-wrap: wrap;
-  }
-
-  .live-indicator {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    cursor: default;
-  }
-  .live-label {
-    font-size: 10px;
-    letter-spacing: .06em;
-    color: var(--muted);
-  }
-  .live-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--green);
-    flex-shrink: 0;
-    transition: background .2s;
-  }
-  .live-dot.pulse {
-    animation: live-pulse .5s ease-out forwards;
-  }
-  .live-dot.stale { background: var(--amber); animation: none; }
-  @keyframes live-pulse {
-    0%   { box-shadow: 0 0 0 0 #3dd68c88; background: #6fffa8; }
-    60%  { box-shadow: 0 0 0 5px #3dd68c00; }
-    100% { box-shadow: 0 0 0 0 transparent; background: var(--green); }
-  }
-  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-
-  /* ── icon buttons ── */
-  .icon-btn {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--dim);
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 10px;
-    letter-spacing: .04em;
-    padding: 3px 9px;
-    transition: color .12s, border-color .12s, background .12s;
-    flex-shrink: 0;
-  }
-  .icon-btn:hover { color: var(--text); border-color: var(--muted); background: var(--surface); }
-  .icon-btn.active { color: var(--blue); border-color: var(--blue); background: var(--blue-bg); }
-  .icon-btn.danger { color: var(--amber); border-color: var(--amber); }
-  .icon-btn.danger:hover { background: var(--amber-bg); }
-
-  /* ── inline progress bar (bottom edge of header) ── */
-  #progress-track {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 2px;
-    background: var(--surface);
-    display: flex;
-    overflow: hidden;
-  }
-  #progress-track.hidden { display: none; }
-  .progress-done { background: var(--green); transition: width .5s ease; }
-  .progress-prog { background: var(--blue);  transition: width .5s ease;
-                   animation: shimmer 1.5s linear infinite; }
-  .progress-fail { background: var(--red); }
-  @keyframes shimmer { 0%,100%{opacity:.8} 50%{opacity:1} }
 
   /* ── inline stats ── */
   .hdr-stats {
@@ -412,12 +332,7 @@
         <span class="live-label">live</span>
       </div>
     </div>
-    <!-- progress bar lives at the bottom edge of the header -->
-    <div id="progress-track" class="hidden">
-      <div class="progress-done" id="prog-done" style="width:0%"></div>
-      <div class="progress-prog" id="prog-prog" style="width:0%"></div>
-      <div class="progress-fail" id="prog-fail" style="width:0%"></div>
-    </div>
+    <!-- progress bar removed -->
   </header>
 
   <div id="orch-panel">
@@ -789,7 +704,6 @@ function setStale(isStale, reason) {
 }
 
 function renderEmpty() {
-  document.getElementById('progress-track').classList.add('hidden');
   document.getElementById('hdr-stats').style.display = 'none';
   document.getElementById('grid').innerHTML = `
     <div class="empty-state">
@@ -816,10 +730,6 @@ function render(state) {
     state.started_at ? `${elapsed(state.started_at)} elapsed` : '';
 
   if (total > 0) {
-    document.getElementById('progress-track').classList.remove('hidden');
-    document.getElementById('prog-done').style.width = `${counts.done/total*100}%`;
-    document.getElementById('prog-prog').style.width = `${counts.in_progress/total*100}%`;
-    document.getElementById('prog-fail').style.width = `${counts.failed/total*100}%`;
     document.getElementById('hdr-progress-label').textContent = `${counts.done}/${total}`;
   }
 
