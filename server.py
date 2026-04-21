@@ -10,50 +10,40 @@ Serves static files from the openswarm directory and provides a small JSON API:
 import http.server
 import json
 import os
-import subprocess
 import sys
-import threading
+import urllib.request
+import urllib.error
 from pathlib import Path
 
 PORT = int(os.environ.get("OPENSWARM_PORT", 7700))
+OPENCODE_API = os.environ.get("OPENCODE_API", "http://localhost:4097")
 BASE_DIR = Path(__file__).parent.resolve()
 SETTINGS_FILE = BASE_DIR / "settings.json"
-
-# Cache for model list — populated once at startup and reused.
-_models_cache: list = []
-_models_ready = threading.Event()
 
 
 # ── API handlers ──────────────────────────────────────────────────────────────
 
 
-def load_models_cache():
-    """Run `opencode models` once at startup and cache the result."""
-    global _models_cache
-    try:
-        result = subprocess.run(
-            ["opencode", "models"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        models = [
-            line.strip()
-            for line in result.stdout.splitlines()
-            if line.strip() and not line.startswith("#")
-        ]
-        _models_cache = models
-        print(f"models cached: {len(_models_cache)} entries", flush=True)
-    except Exception as e:
-        print(f"WARNING: could not load model list: {e}", flush=True)
-    finally:
-        _models_ready.set()
-
-
 def api_get_models() -> tuple[int, list]:
-    # Wait up to 20s for the background cache to be ready
-    _models_ready.wait(timeout=20)
-    return 200, _models_cache
+    """Fetch models from the opencode server API (/provider) and return only
+    those belonging to connected (authenticated) providers."""
+    try:
+        url = f"{OPENCODE_API}/provider"
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            data = json.loads(resp.read())
+        connected = set(data.get("connected", []))
+        models = []
+        for p in data.get("all", []):
+            if p.get("id") not in connected:
+                continue
+            for m in p.get("models", []):
+                mid = m.get("id") if isinstance(m, dict) else str(m)
+                if mid:
+                    models.append(f"{p['id']}/{mid}")
+        return 200, models
+    except Exception as e:
+        print(f"WARNING: could not fetch models from opencode API: {e}", flush=True)
+        return 200, []
 
 
 def api_get_settings() -> tuple[int, dict]:
@@ -125,7 +115,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    threading.Thread(target=load_models_cache, daemon=True).start()
     server = http.server.ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     print(f"openswarm dashboard → http://0.0.0.0:{PORT}", flush=True)
     try:

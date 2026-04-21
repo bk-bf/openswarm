@@ -4,3 +4,4 @@ swarm.env
 logs/
 reports/
 state.json
+settings.json
