@@ -296,35 +296,41 @@
   }
   .wt-line .wt-repo { color: var(--muted); margin-right: 4px; }
 
-  /* ── failure reason — compact, 1 line, hover for full text ── */
-  .failure-inline {
-    margin: 0 14px 4px;
-    padding: 0 0 0 7px;
-    border-left: 2px solid var(--red);
-    font-size: 10px;
-    color: var(--red);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    cursor: default;
+  /* ── failure icon — lives in card-header, zero body space ── */
+  .err-icon {
     flex-shrink: 0;
-    opacity: .85;
-  }
-  .failure-inline:hover { opacity: 1; white-space: normal; overflow: visible; word-break: break-word; background: var(--red-bg); padding: 3px 7px; margin-bottom: 2px; z-index: 2; position: relative; }
-  .diagnosis-inline {
-    margin: 0 14px 4px;
-    padding: 0 0 0 7px;
-    border-left: 2px solid var(--amber);
-    font-size: 10px;
-    color: var(--amber);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    width: 18px; height: 18px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
     cursor: default;
-    flex-shrink: 0;
-    opacity: .85;
+    position: relative;
+    border: 1px solid transparent;
   }
-  .diagnosis-inline:hover { opacity: 1; white-space: normal; overflow: visible; word-break: break-word; background: var(--amber-bg); padding: 3px 7px; margin-bottom: 2px; z-index: 2; position: relative; }
+  .err-icon.fail  { color: var(--red);   border-color: #4a1e1e; background: var(--red-bg); }
+  .err-icon.diag  { color: var(--amber); border-color: #4a3010; background: var(--amber-bg); }
+  /* tooltip */
+  .err-icon::after {
+    content: attr(data-tip);
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    min-width: 220px;
+    max-width: 340px;
+    background: #0d0d0f;
+    border: 1px solid var(--border);
+    padding: 6px 9px;
+    font-size: 10px;
+    line-height: 1.55;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .12s;
+    box-shadow: 0 8px 24px rgba(0,0,0,.7);
+  }
+  .err-icon:hover::after { opacity: 1; }
 
   /* ── log pane (always open) ── */
   .log-header {
@@ -676,13 +682,12 @@ function renderCard(taskId, task, depsArr) {
       }).join('') + `</div>`;
   }
 
-  let failureHtml = '';
+  let errIconsHtml = '';
   if (status === 'failed' && task.failure_reason) {
-    failureHtml = `<div class="failure-inline" title="${escHtml(task.failure_reason)}">⚠ ${escHtml(task.failure_reason)}</div>`;
+    errIconsHtml += `<span class="err-icon fail" data-tip="${escHtml(task.failure_reason)}">⚠</span>`;
   }
   if (status === 'failed' && task.investigator_diagnosis && task.investigator_diagnosis.trim().length > 4) {
-    const diag = task.investigator_diagnosis.substring(0, 400);
-    failureHtml += `<div class="diagnosis-inline" title="${escHtml(diag)}">⊙ diagnosis: ${escHtml(diag)}</div>`;
+    errIconsHtml += `<span class="err-icon diag" data-tip="${escHtml(task.investigator_diagnosis.substring(0, 400))}">⊙</span>`;
   }
 
   const logText = logCache[taskId] || '';
@@ -692,6 +697,7 @@ function renderCard(taskId, task, depsArr) {
   <div class="card-header">
     <span class="task-id">${taskId}</span>
     <span class="card-title">${escHtml(title)}</span>
+    ${errIconsHtml}
     ${statusBadge(status)}
     <button class="icon-btn" style="font-size:9px;padding:2px 6px;margin-left:4px" onclick="showRestartModal('${taskId}')" title="Restart this worker">⟳</button>
   </div>
@@ -701,7 +707,6 @@ function renderCard(taskId, task, depsArr) {
     ${timerHtml}
   </div>
   ${worktreesHtml}
-  ${failureHtml}
   <div class="log-header">
     <span>worker log</span>
     <span style="color:var(--muted);font-size:9px">tail ${LOG_TAIL_LINES}</span>
