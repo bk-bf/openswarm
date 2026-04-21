@@ -250,27 +250,7 @@
   .badge-done        { background: var(--green-bg); color: var(--green); }
   .badge-failed      { background: var(--red-bg);   color: var(--red);   }
 
-  /* ── card meta row ── */
-  .card-meta {
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 6px;
-    padding: 0 14px 6px;
-    color: var(--dim);
-    font-size: 11px;
-    align-items: center;
-    flex-shrink: 0;
-    overflow: hidden;
-  }
-  .repo-tag {
-    background: #1e2028;
-    border: 1px solid var(--border);
-    padding: 1px 5px;
-    font-size: 10px;
-    color: var(--muted);
-    flex-shrink: 0;
-  }
-  .card-meta .timer { margin-left: auto; color: var(--amber); flex-shrink: 0; }
+  .timer { color: var(--amber); }
 
   /* ── worktrees ── */
   .worktrees {
@@ -706,14 +686,11 @@ function renderCard(taskId, task, depsArr) {
   <div class="card-header">
     <span class="task-id" style="color:var(--muted);font-weight:400">task</span>
     <span class="card-title">${title && title !== taskId ? escHtml(title) : escHtml(taskId)}</span>
+    ${attempts ? `<span style="color:var(--dim);font-size:10px;flex-shrink:0">${attempts}</span>` : ''}
+    ${timerHtml ? `<span style="flex-shrink:0">${timerHtml}</span>` : ''}
     ${errIconsHtml}
     ${statusBadge(status)}
     <button class="icon-btn" style="font-size:9px;padding:2px 6px;margin-left:4px" onclick="showRestartModal('${taskId}')" title="Restart this worker">⟳</button>
-  </div>
-  <div class="card-meta">
-    ${repoTagsHtml}
-    ${attempts}
-    ${timerHtml}
   </div>
   ${worktreesHtml}
   <div class="log-header">
