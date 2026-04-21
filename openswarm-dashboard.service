@@ -15,8 +15,8 @@ Restart=always
 RestartSec=5
 
 # Resource limits
-MemoryMax=256M
-MemorySwapMax=64M
+MemoryMax=768M
+MemorySwapMax=128M
 
 [Install]
 WantedBy=multi-user.target
