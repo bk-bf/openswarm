@@ -46,6 +46,12 @@ DOCS_ROOT: Path = REPO_ROOT / "yact-dev-docs"
 WORKER_TMPL = SWARM_DIR / "prompts" / "worker-template.md"
 INV_TMPL = SWARM_DIR / "prompts" / "investigator.md"
 
+# Default model for all worker sessions.  Overridden by --model CLI arg.
+# Individual tasks can override this via the "model" field in ROADMAP_DEPS.json.
+DEFAULT_MODEL: str = "anthropic/claude-sonnet-4-5"
+# Model used for investigator sessions (defaults to DEFAULT_MODEL).
+INVESTIGATOR_MODEL: str | None = None  # None → resolved to DEFAULT_MODEL at runtime
+
 # ─── Config ───────────────────────────────────────────────────────────────────
 
 MAX_ATTEMPTS = 2
@@ -407,10 +413,13 @@ def launch_worker(
     log_file = LOGS_DIR / f"{task_id}-worker.log"
 
     log_handle = open(log_file, "w")
+    # Resolve model: per-task override wins, then global default.
+    model = task_meta.get("model") or DEFAULT_MODEL
+    log(f"  model: {model}")
     # Pass prompt as a direct positional argument — Python subprocess passes it
     # verbatim (no shell interpolation). ARG_MAX on Linux is ~2MB, safe for prompts.
     proc = subprocess.Popen(
-        ["opencode", "run", "--dir", run_dir, prompt],
+        ["opencode", "run", "--dir", run_dir, "--model", model, prompt],
         stdout=log_handle,
         stderr=log_handle,
         start_new_session=True,
@@ -472,10 +481,11 @@ def run_investigator(
         primary_repo = task_meta["repos"][0]
         run_dir = worktrees[primary_repo]
     inv_log = LOGS_DIR / f"{task_id}-investigator.log"
+    inv_model = INVESTIGATOR_MODEL or DEFAULT_MODEL
 
     try:
         result = subprocess.run(
-            ["opencode", "run", "--dir", run_dir, prompt],
+            ["opencode", "run", "--dir", run_dir, "--model", inv_model, prompt],
             capture_output=False,
             stdout=open(inv_log, "w"),
             stderr=subprocess.STDOUT,
@@ -701,6 +711,7 @@ def write_report(state: dict, deps_map: dict):
 
 def main():
     global REPO_ROOT, DEPS_FILE, SERVER_REPO, WEB_REPO, DOCS_ROOT
+    global DEFAULT_MODEL, INVESTIGATOR_MODEL
 
     parser = argparse.ArgumentParser(description="openswarm Orchestrator")
     parser.add_argument(
@@ -724,6 +735,21 @@ def main():
         help="Resume from existing state.json (appends new scope tasks if --scope is wider)",
     )
     parser.add_argument(
+        "--model",
+        default=None,
+        help=(
+            "Default model for all worker sessions, in provider/model format "
+            "(e.g. anthropic/claude-sonnet-4-5). "
+            "Per-task 'model' field in ROADMAP_DEPS.json overrides this."
+        ),
+    )
+    parser.add_argument(
+        "--investigator-model",
+        default=None,
+        dest="investigator_model",
+        help="Model for investigator sessions. Defaults to --model.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Print the resolved task graph and prompts without launching any workers",
@@ -740,6 +766,11 @@ def main():
     SERVER_REPO = REPO_ROOT / "yact-server"
     WEB_REPO = REPO_ROOT / "yact-web"
     DOCS_ROOT = REPO_ROOT / "yact-dev-docs"
+
+    if args.model:
+        DEFAULT_MODEL = args.model
+    INVESTIGATOR_MODEL = args.investigator_model  # None → falls back to DEFAULT_MODEL
+    log(f"worker model:      {DEFAULT_MODEL}")
 
     scope = [s.strip() for s in args.scope.split(",") if s.strip()]
     deps = load_deps()
