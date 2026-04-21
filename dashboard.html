@@ -149,22 +149,30 @@
   .hdr-stat.fail  strong { color: var(--red);   }
   .hdr-sep { color: var(--border); }
 
-  /* ── orchestrator log popover (floats, doesn't push layout) ── */
+  /* ── orchestrator log — full-viewport dropdown ── */
   #orch-panel {
     position: fixed;
-    right: 0;
-    width: 540px;
-    max-height: 420px;
+    left: 0; right: 0; bottom: 0;
+    /* top is set by JS to header height (default) or drag position */
     z-index: 50;
     background: var(--surface);
-    border: 1px solid var(--border);
     border-top: 2px solid var(--blue);
-    box-shadow: 0 12px 40px rgba(0,0,0,.7);
+    box-shadow: 0 -8px 40px rgba(0,0,0,.7);
     display: none;
     flex-direction: column;
-    /* top set by JS to match header height */
+    min-height: 120px;
   }
   #orch-panel.open { display: flex; }
+  /* drag handle */
+  #orch-resize-handle {
+    height: 4px;
+    cursor: ns-resize;
+    background: transparent;
+    flex-shrink: 0;
+    transition: background .15s;
+  }
+  #orch-resize-handle:hover,
+  #orch-resize-handle.dragging { background: var(--blue); }
   .orch-panel-hdr {
     padding: 7px 14px;
     border-bottom: 1px solid var(--border);
@@ -383,7 +391,6 @@
 
   <header>
     <div class="logo">open<span>swarm</span></div>
-    <span id="hdr-scope" style="color:var(--dim);font-size:11px"></span>
     <div class="hdr-stats" id="hdr-stats" style="display:none">
       <div class="hdr-sep">·</div>
       <div class="hdr-stat done"><strong id="s-done">0</strong> done</div>
@@ -414,6 +421,7 @@
   </header>
 
   <div id="orch-panel">
+    <div id="orch-resize-handle"></div>
     <div class="orch-panel-hdr">
       <span>orchestrator · logs/orchestrator.log</span>
       <span id="orch-refresh-label" style="font-size:10px;color:var(--muted)"></span>
@@ -583,14 +591,17 @@ async function refreshOrchLog() {
 }
 
 // ── Orchestrator panel ────────────────────────────────────────────────────────
+let orchPanelTop = null; // null = full height (reset on each open)
+
 async function toggleOrchPanel() {
   const panel  = document.getElementById('orch-panel');
   const btn    = document.getElementById('orch-toggle-btn');
-  const header = document.querySelector('header');
   orchPanelOpen = !orchPanelOpen;
   if (orchPanelOpen) {
-    // Position flush below the header, right-aligned
-    panel.style.top = header.offsetHeight + 'px';
+    const hdrH = document.querySelector('header').offsetHeight;
+    // restore last drag position, or default to full viewport
+    const top = orchPanelTop !== null ? orchPanelTop : hdrH;
+    panel.style.top = top + 'px';
     attachOrchScrollListener();
   }
   panel.classList.toggle('open', orchPanelOpen);
@@ -598,17 +609,35 @@ async function toggleOrchPanel() {
   if (orchPanelOpen) await refreshOrchLog();
 }
 
-// Close orch panel when clicking outside of it
-document.addEventListener('click', e => {
-  if (!orchPanelOpen) return;
-  const panel = document.getElementById('orch-panel');
-  const btn   = document.getElementById('orch-toggle-btn');
-  if (!panel.contains(e.target) && !btn.contains(e.target)) {
-    orchPanelOpen = false;
-    panel.classList.remove('open');
-    btn.classList.remove('active');
-  }
-});
+// ── Orch panel resize drag ────────────────────────────────────────────────────
+(function () {
+  let dragging = false, startY = 0, startTop = 0;
+  document.addEventListener('DOMContentLoaded', () => {
+    const handle = document.getElementById('orch-resize-handle');
+    const panel  = document.getElementById('orch-panel');
+    if (!handle) return;
+    handle.addEventListener('mousedown', e => {
+      dragging = true;
+      startY   = e.clientY;
+      startTop = panel.getBoundingClientRect().top;
+      handle.classList.add('dragging');
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      const newTop = Math.max(40, Math.min(window.innerHeight - 120, startTop + (e.clientY - startY)));
+      panel.style.top = newTop + 'px';
+      orchPanelTop = newTop;
+    });
+    document.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false;
+      document.getElementById('orch-resize-handle').classList.remove('dragging');
+      document.body.style.userSelect = '';
+    });
+  });
+})();
 
 // ── Restart modal ─────────────────────────────────────────────────────────────
 function showRestartModal(target) {
@@ -676,9 +705,9 @@ function renderCard(taskId, task, depsArr) {
   let worktreesHtml = '';
   if (task.worktrees && Object.keys(task.worktrees).length) {
     worktreesHtml = `<div class="worktrees">` +
-      Object.entries(task.worktrees).map(([repo, path]) => {
+      Object.entries(task.worktrees).map(([, path]) => {
         const short = path.replace('/home/ubuntu/server/yact/', '');
-        return `<div class="wt-line"><span class="wt-repo">${repo}</span>${short}</div>`;
+        return `<div class="wt-line"><span class="wt-repo">worktree</span>${short}</div>`;
       }).join('') + `</div>`;
   }
 
@@ -696,7 +725,7 @@ function renderCard(taskId, task, depsArr) {
 <div class="card ${status}" id="card-${taskId}">
   <div class="card-header">
     <span class="task-id">${taskId}</span>
-    <span class="card-title">${escHtml(title)}</span>
+    <span class="card-title">${title && title !== taskId ? escHtml(title) : '<span style="color:var(--muted);font-weight:400">task</span>'}</span>
     ${errIconsHtml}
     ${statusBadge(status)}
     <button class="icon-btn" style="font-size:9px;padding:2px 6px;margin-left:4px" onclick="showRestartModal('${taskId}')" title="Restart this worker">⟳</button>
@@ -769,7 +798,6 @@ function renderEmpty() {
         Start a run: <code style="color:var(--blue)">sudo systemctl start openswarm</code>
       </div>
     </div>`;
-  document.getElementById('hdr-scope').textContent = '';
   document.getElementById('hdr-started').textContent = '';
 }
 
@@ -784,7 +812,6 @@ function render(state) {
     counts[s] = (counts[s] || 0) + 1;
   });
 
-  document.getElementById('hdr-scope').textContent = scope.join(' · ');
   document.getElementById('hdr-started').textContent =
     state.started_at ? `${elapsed(state.started_at)} elapsed` : '';
 
