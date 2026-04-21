@@ -12,6 +12,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 PORT = int(os.environ.get("OPENSWARM_PORT", 7700))
@@ -119,7 +120,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    load_models_cache()
+    threading.Thread(target=load_models_cache, daemon=True).start()
     server = http.server.ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     print(f"openswarm dashboard → http://0.0.0.0:{PORT}", flush=True)
     try:
