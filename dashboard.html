@@ -171,13 +171,10 @@
     background: #0d1628;
   }
   #orch-log-content {
-    padding: 8px 14px;
-    font-size: 10.5px;
-    line-height: 1.65;
-    color: #8a9ab0;
+    padding: 6px 0;
+    font-size: 11.5px;
+    line-height: 1.6;
     overflow-y: auto;
-    white-space: pre-wrap;
-    word-break: break-all;
     flex: 1;
   }
 
@@ -259,6 +256,8 @@
     flex-direction: column;
     gap: 2px;
     flex-shrink: 0;
+    /* fixed height = 2 wt-lines (14px each) + 1 gap (2px) + bottom padding (6px) */
+    height: 36px;
   }
   .wt-line {
     font-size: 10px;
@@ -318,21 +317,73 @@
     flex-shrink: 0;
   }
   .log-content {
-    padding: 8px 12px;
-    font-size: 10px;
-    line-height: 1.65;
-    color: #8a9ab0;
+    padding: 6px 0;
+    font-size: 11.5px;
+    line-height: 1.6;
     overflow-y: auto;
+    flex: 1;
+    /* no global pre-wrap; each .ll handles its own wrapping */
+  }
+
+  /* ── ANSI colour classes ── */
+  .fg30 { color: #555e6e; }
+  .fg31, .fg91 { color: var(--red);   }
+  .fg32, .fg92 { color: var(--green); }
+  .fg33, .fg93 { color: var(--amber); }
+  .fg34, .fg94 { color: var(--blue);  }
+  .fg35, .fg95 { color: #c678dd; }
+  .fg36, .fg96 { color: #56b6c2; }
+  .fg37, .fg97 { color: var(--text);  }
+  .fg90 { color: var(--muted); }
+  .ansi-b   { font-weight: 700; color: var(--text); }
+  .ansi-dim { color: var(--muted); }
+  .ansi-u   { text-decoration: underline; }
+
+  /* ── log line base ── */
+  .ll {
+    display: block;
+    padding: 0 14px;
     white-space: pre-wrap;
     word-break: break-all;
-    flex: 1;
+    color: #8a9ab0;
+    min-height: 1em;
   }
-  .log-content .ansi-green  { color: var(--green); }
-  .log-content .ansi-blue   { color: var(--blue);  }
-  .log-content .ansi-yellow { color: var(--amber); }
-  .log-content .ansi-red    { color: var(--red);   }
-  .log-content .ansi-dim    { color: var(--muted); }
-  .log-content .ansi-bold   { color: var(--text); font-weight: 700; }
+  .ll-blank { min-height: 0.55em; }
+
+  /* session header > build · session-id */
+  .ll-session-hdr {
+    color: var(--dim);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+    margin-bottom: 4px;
+    font-size: 10.5px;
+    letter-spacing: .03em;
+  }
+
+  /* prose — agent narrative text */
+  .ll-prose { color: #c8cdd8; }
+
+  /* tool call lines */
+  .ll-tool-glob  { color: #4f9cf9; }
+  .ll-tool-read  { color: #56b6c2; }
+  .ll-tool-write { color: #c678dd; }
+  .ll-tool-bash  { color: var(--green); font-weight: 600; }
+  .ll-tool-warn  {
+    color: var(--amber);
+    background: #1e1608;
+    border-left: 2px solid var(--amber);
+    padding-left: 12px;
+  }
+  .ll-tool-ok  { color: var(--green); }
+  .ll-tool-err { color: var(--red);   }
+
+  /* bash shell output — indented, subtle bg */
+  .ll-bash-out {
+    color: #9aa3b2;
+    background: #111316;
+    padding-left: 28px;
+    border-left: 2px solid #26292f;
+  }
 
   /* ── empty / error ── */
   .empty-state {
@@ -417,8 +468,6 @@
 // ── Config ────────────────────────────────────────────────────────────────────
 const REFRESH_MS      = 10_000;
 const LOG_REFRESH_MS  = 8_000;
-const LOG_TAIL_LINES  = 80;
-const ORCH_TAIL_LINES = 60;
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let swarmState   = null;
@@ -427,18 +476,129 @@ let countdown    = REFRESH_MS / 1000;
 let orchPanelOpen = false;
 
 // ── ANSI → HTML ───────────────────────────────────────────────────────────────
-function safeAnsiToHtml(raw) {
+// Proper multi-code SGR parser. Handles compound codes like \x1b[1;32m.
+function sgrClass(codes) {
+  const cls = [];
+  for (const c of codes) {
+    if      (c === 0)                { return null; } // reset — caller handles close
+    else if (c === 1)                cls.push('ansi-b');
+    else if (c === 2)                cls.push('ansi-dim');
+    else if (c === 4)                cls.push('ansi-u');
+    else if (c >= 30 && c <= 37)     cls.push(`fg${c}`);
+    else if (c === 39)               {}  // default fg — ignore
+    else if (c >= 90 && c <= 97)     cls.push(`fg${c}`);
+  }
+  return cls.length ? cls.join(' ') : null;
+}
+
+function ansiToHtml(raw) {
   const escaped = raw
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  return escaped
-    .replace(/\x1b\[0m/g,  '</span>')
-    .replace(/\x1b\[1m/g,  '<span class="ansi-bold">')
-    .replace(/\x1b\[2m/g,  '<span class="ansi-dim">')
-    .replace(/\x1b\[32m/g, '<span class="ansi-green">')
-    .replace(/\x1b\[33m/g, '<span class="ansi-yellow">')
-    .replace(/\x1b\[31m/g, '<span class="ansi-red">')
-    .replace(/\x1b\[34m/g, '<span class="ansi-blue">')
-    .replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
+  // Split on any CSI sequence
+  const parts = escaped.split(/(\x1b\[[0-9;]*[A-Za-z])/);
+  let html = '';
+  let open = false;
+  for (const p of parts) {
+    if (p.startsWith('\x1b[') && p.endsWith('m')) {
+      const nums = p.slice(2, -1).split(';').map(n => parseInt(n || '0', 10));
+      if (nums.includes(0) || nums.length === 0) {
+        if (open) { html += '</span>'; open = false; }
+        // Handle compound reset+colour like \x1b[0;90m
+        const rest = nums.filter(n => n !== 0);
+        if (rest.length) {
+          const c = sgrClass(rest);
+          if (c) { html += `<span class="${c}">`; open = true; }
+        }
+      } else {
+        if (open) { html += '</span>'; open = false; }
+        const c = sgrClass(nums);
+        if (c) { html += `<span class="${c}">`; open = true; }
+      }
+    } else if (p.startsWith('\x1b[')) {
+      // Non-colour CSI (cursor moves etc.) — drop silently
+    } else {
+      html += p;
+    }
+  }
+  if (open) html += '</span>';
+  return html;
+}
+
+// ── Log line renderer ─────────────────────────────────────────────────────────
+// Classifies each line by its first visible character(s) and wraps in a <span>
+// with a type class, creating structural highlighting that mirrors opencode CLI.
+
+function stripAnsi(s) {
+  return s.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
+}
+
+const TOOL_ICONS = {
+  '✱': 'tool-glob',
+  '★': 'tool-glob',
+  '→': 'tool-read',
+  '↗': 'tool-write',
+  '✎': 'tool-write',
+  '✓': 'tool-ok',
+  '✗': 'tool-err',
+  '!': 'tool-warn',
+  '$': 'tool-bash',
+};
+
+function classifyLine(rawLine) {
+  const plain = stripAnsi(rawLine);
+  // Trim leading whitespace but preserve actual indentation detection
+  const trimmed = plain.replace(/^\s+/, '');
+  if (trimmed === '') return 'blank';
+  // Session header: "> word · word" pattern
+  if (/^> \S/.test(trimmed) && trimmed.length < 80) return 'session-hdr';
+  // Tool call lines (icon is first char after any reset sequences)
+  const first = trimmed[0];
+  if (TOOL_ICONS[first]) return TOOL_ICONS[first];
+  // "$ " command prefix without the plain $-only icon (bash line from opencode)
+  if (trimmed.startsWith('$ ')) return 'tool-bash';
+  return 'prose';
+}
+
+function renderLogLines(raw) {
+  if (!raw) return '';
+  const lines = raw.replace(/\r/g, '').split('\n');
+  let html = '';
+  let inBashBlock = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    let type = classifyLine(line);
+
+    // Track bash output blocks: everything after a tool-bash line until next tool call
+    if (type === 'tool-bash') {
+      inBashBlock = true;
+    } else if (type !== 'blank' && type !== 'prose' && type !== 'bash-out') {
+      inBashBlock = false;
+    } else if (inBashBlock && type === 'prose') {
+      type = 'bash-out';
+    }
+
+    const content = ansiToHtml(line) || '&nbsp;';
+    html += `<span class="ll ll-${type}">${content}\n</span>`;
+  }
+  return html;
+}
+
+// ── Log fetching ──────────────────────────────────────────────────────────────
+async function fetchLog(taskId) {
+  try {
+    const r = await fetch(`logs/${taskId}-worker.log?_=${Date.now()}`);
+    if (!r.ok) return null;
+    return await r.text();
+  } catch { return null; }
+}
+
+async function fetchOrchLog() {
+  try {
+    const r = await fetch(`logs/orchestrator.log?_=${Date.now()}`);
+    if (!r.ok) return null;
+    return await r.text();
+  } catch { return null; }
 }
 
 // ── Time helpers ──────────────────────────────────────────────────────────────
@@ -492,25 +652,6 @@ function attachOrchScrollListener() {
   }, { passive: true });
 }
 
-// ── Log fetching ──────────────────────────────────────────────────────────────
-async function fetchLog(taskId) {
-  try {
-    const r = await fetch(`logs/${taskId}-worker.log?_=${Date.now()}`);
-    if (!r.ok) return null;
-    const lines = (await r.text()).split('\n');
-    return lines.slice(-LOG_TAIL_LINES).join('\n');
-  } catch { return null; }
-}
-
-async function fetchOrchLog() {
-  try {
-    const r = await fetch(`logs/orchestrator.log?_=${Date.now()}`);
-    if (!r.ok) return null;
-    const lines = (await r.text()).split('\n');
-    return lines.slice(-ORCH_TAIL_LINES).join('\n');
-  } catch { return null; }
-}
-
 async function refreshAllLogs() {
   if (!swarmState) return;
   for (const [taskId] of Object.entries(swarmState.tasks || {})) {
@@ -522,7 +663,7 @@ async function refreshAllLogs() {
       const pinned = logScrollPinned.has(taskId);
       // Save relative scroll offset from bottom before rewriting innerHTML
       const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-      el.innerHTML = safeAnsiToHtml(text);
+      el.innerHTML = renderLogLines(text);
       if (pinned) {
         el.scrollTop = el.scrollHeight;
       } else {
@@ -539,7 +680,7 @@ async function refreshOrchLog() {
   const el = document.getElementById('orch-log-content');
   if (text && el) {
     const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    el.innerHTML = safeAnsiToHtml(text);
+    el.innerHTML = renderLogLines(text);
     if (orchScrollPinned) {
       el.scrollTop = el.scrollHeight;
     } else {
@@ -695,9 +836,9 @@ function renderCard(taskId, task, depsArr) {
   ${worktreesHtml}
   <div class="log-header">
     <span>worker log</span>
-    <span style="color:var(--muted);font-size:9px">tail ${LOG_TAIL_LINES}</span>
+    <span style="color:var(--muted);font-size:9px"></span>
   </div>
-  <div class="log-content" id="log-content-${taskId}">${logText ? safeAnsiToHtml(logText) : '<span style="color:var(--muted)">loading…</span>'}</div>
+  <div class="log-content" id="log-content-${taskId}">${logText ? renderLogLines(logText) : '<span style="color:var(--muted);padding:8px 14px;display:block">loading…</span>'}</div>
 </div>`;
 }
 
