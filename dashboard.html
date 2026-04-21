@@ -71,23 +71,34 @@
     flex-wrap: wrap;
   }
 
-  .refresh-indicator {
-    color: var(--muted);
-    font-size: 15px;
+  .live-indicator {
     display: flex;
     align-items: center;
+    gap: 5px;
     cursor: default;
   }
-  .dot {
+  .live-label {
+    font-size: 10px;
+    letter-spacing: .06em;
+    color: var(--muted);
+  }
+  .live-dot {
     width: 6px; height: 6px;
     border-radius: 50%;
     background: var(--green);
-    animation: blink 2s ease-in-out infinite;
+    flex-shrink: 0;
+    transition: background .2s;
   }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
-  @keyframes spin   { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-  #refresh-icon { display: inline-block; line-height: 1; }
-  #refresh-icon.spinning { animation: spin .6s linear infinite; color: var(--blue); }
+  .live-dot.pulse {
+    animation: live-pulse .5s ease-out forwards;
+  }
+  .live-dot.stale { background: var(--amber); animation: none; }
+  @keyframes live-pulse {
+    0%   { box-shadow: 0 0 0 0 #3dd68c88; background: #6fffa8; }
+    60%  { box-shadow: 0 0 0 5px #3dd68c00; }
+    100% { box-shadow: 0 0 0 0 transparent; background: var(--green); }
+  }
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 
   /* ── icon buttons ── */
   .icon-btn {
@@ -208,9 +219,7 @@
     box-shadow: inset 0 0 24px var(--pulse-col);
     animation: cardpulse 3s ease-in-out infinite;
   }
-  .card.done   { }
-  .card.failed { }
-  .card.pending { }
+  .card.done, .card.failed, .card.pending { border-top: none; }
 
   @keyframes cardpulse {
     0%,100% { box-shadow: inset 0 0 20px #4f9cf910; }
@@ -287,18 +296,35 @@
   }
   .wt-line .wt-repo { color: var(--muted); margin-right: 4px; }
 
-  /* ── failure reason ── */
-  .failure-reason {
-    margin: 0 14px 6px;
-    background: var(--red-bg);
-    border: 1px solid #4a1e1e;
-    padding: 6px 9px;
+  /* ── failure reason — compact, 1 line, hover for full text ── */
+  .failure-inline {
+    margin: 0 14px 4px;
+    padding: 0 0 0 7px;
+    border-left: 2px solid var(--red);
     font-size: 10px;
     color: var(--red);
-    line-height: 1.5;
-    word-break: break-word;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: default;
     flex-shrink: 0;
+    opacity: .85;
   }
+  .failure-inline:hover { opacity: 1; white-space: normal; overflow: visible; word-break: break-word; background: var(--red-bg); padding: 3px 7px; margin-bottom: 2px; z-index: 2; position: relative; }
+  .diagnosis-inline {
+    margin: 0 14px 4px;
+    padding: 0 0 0 7px;
+    border-left: 2px solid var(--amber);
+    font-size: 10px;
+    color: var(--amber);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: default;
+    flex-shrink: 0;
+    opacity: .85;
+  }
+  .diagnosis-inline:hover { opacity: 1; white-space: normal; overflow: visible; word-break: break-word; background: var(--amber-bg); padding: 3px 7px; margin-bottom: 2px; z-index: 2; position: relative; }
 
   /* ── log pane (always open) ── */
   .log-header {
@@ -368,8 +394,9 @@
       <span id="hdr-started" style="color:var(--dim);font-size:11px"></span>
       <button class="icon-btn" id="orch-toggle-btn" onclick="toggleOrchPanel()" title="Orchestrator log">orchestrator log</button>
       <button class="icon-btn danger" id="orch-restart-btn" onclick="showRestartModal('orchestrator')" title="Restart orchestrator">restart orchestrator</button>
-      <div class="refresh-indicator">
-        <span id="refresh-icon" title="auto-refresh">↻</span>
+      <div class="live-indicator">
+        <div class="live-dot" id="live-dot"></div>
+        <span class="live-label">live</span>
       </div>
     </div>
     <!-- progress bar lives at the bottom edge of the header -->
@@ -379,8 +406,6 @@
       <div class="progress-fail" id="prog-fail" style="width:0%"></div>
     </div>
   </header>
-
-  <div id="error-bar"></div>
 
   <div id="orch-panel">
     <div class="orch-panel-hdr">
@@ -461,9 +486,7 @@ function duration(startIso, endIso) {
 // ── Top-height CSS var (so cards size correctly) ──────────────────────────────
 function updateTopH() {
   const h = document.querySelector('header').offsetHeight;
-  const errBar = document.getElementById('error-bar');
-  const extra = errBar.classList.contains('visible') ? errBar.offsetHeight : 0;
-  document.documentElement.style.setProperty('--top-h', (h + extra) + 'px');
+  document.documentElement.style.setProperty('--top-h', h + 'px');
 }
 
 // ── Scroll-pin tracking per log pane ─────────────────────────────────────────
@@ -655,10 +678,11 @@ function renderCard(taskId, task, depsArr) {
 
   let failureHtml = '';
   if (status === 'failed' && task.failure_reason) {
-    failureHtml = `<div class="failure-reason">${escHtml(task.failure_reason)}</div>`;
+    failureHtml = `<div class="failure-inline" title="${escHtml(task.failure_reason)}">⚠ ${escHtml(task.failure_reason)}</div>`;
   }
   if (status === 'failed' && task.investigator_diagnosis && task.investigator_diagnosis.trim().length > 4) {
-    failureHtml += `<div class="failure-reason" style="background:#1a1008;border-color:#4a3010;color:var(--amber)"><strong>diagnosis:</strong> ${escHtml(task.investigator_diagnosis.substring(0, 280))}</div>`;
+    const diag = task.investigator_diagnosis.substring(0, 400);
+    failureHtml += `<div class="diagnosis-inline" title="${escHtml(diag)}">⊙ diagnosis: ${escHtml(diag)}</div>`;
   }
 
   const logText = logCache[taskId] || '';
@@ -715,13 +739,18 @@ async function refresh() {
 }
 
 function setStale(isStale, reason) {
-  const icon = document.getElementById('refresh-icon');
+  const dot = document.getElementById('live-dot');
   if (isStale) {
-    icon.style.color = 'var(--amber)';
-    icon.title = reason || 'state.json unreachable';
+    dot.classList.add('stale');
+    dot.title = reason || 'state.json unreachable';
   } else {
-    icon.style.color = '';
-    icon.title = 'auto-refresh';
+    dot.classList.remove('stale');
+    dot.title = '';
+    // pulse on successful fetch
+    dot.classList.remove('pulse');
+    void dot.offsetWidth; // reflow to restart animation
+    dot.classList.add('pulse');
+    setTimeout(() => dot.classList.remove('pulse'), 600);
   }
 }
 
@@ -830,9 +859,7 @@ async function tick() {
 
   if (countdown <= 0) {
     countdown = REFRESH_MS / 1000;
-    document.getElementById('refresh-icon').classList.add('spinning');
     await Promise.all([refresh(), refreshAllLogs()]);
-    document.getElementById('refresh-icon').classList.remove('spinning');
   }
 
   if (swarmState) {
