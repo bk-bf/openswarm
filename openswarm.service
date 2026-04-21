@@ -1,0 +1,32 @@
+[Unit]
+Description=openswarm Orchestrator
+Documentation=https://github.com/bk-bf/yact
+After=network.target openswarm-dashboard.service
+# Wants the dashboard up so state is visible as soon as the run starts
+Wants=openswarm-dashboard.service
+
+[Service]
+Type=simple
+User=agent
+Group=agent
+WorkingDirectory=/home/ubuntu/server/openswarm
+Environment=HOME=/home/agent
+Environment=PATH=/home/agent/.local/bin:/usr/local/bin:/usr/bin:/bin
+# Runtime args are configured in swarm.env — edit that file, not this unit.
+EnvironmentFile=-/home/ubuntu/server/openswarm/swarm.env
+ExecStart=python3 /home/ubuntu/server/openswarm/orchestrator.py $SWARM_ARGS
+# Do NOT auto-restart — a run is a deliberate user action.
+# To start a new run:  systemctl start openswarm
+# To resume:          set SWARM_ARGS=--resume in swarm.env, then start again
+Restart=no
+
+# Log to journald (readable with: journalctl -u openswarm -f)
+StandardOutput=append:/home/ubuntu/server/openswarm/logs/orchestrator.log
+StandardError=append:/home/ubuntu/server/openswarm/logs/orchestrator.log
+
+# Resource limits
+MemoryMax=2G
+MemorySwapMax=512M
+
+[Install]
+WantedBy=multi-user.target

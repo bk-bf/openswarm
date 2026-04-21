@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>openswarm</title>
+<style>
+  :root {
+    --bg:        #0d0d0f;
+    --surface:   #16181d;
+    --border:    #26292f;
+    --muted:     #4a4f5a;
+    --text:      #d4d8e2;
+    --dim:       #7a8090;
+    --green:     #3dd68c;
+    --green-bg:  #0e2a1c;
+    --blue:      #4f9cf9;
+    --blue-bg:   #0d1e38;
+    --amber:     #f0a050;
+    --amber-bg:  #2a1d08;
+    --red:       #f46060;
+    --red-bg:    #2a0e0e;
+    --pulse-col: #4f9cf933;
+    --top-h: 140px; /* header + progress + summary — updated by JS */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 13px;
+  }
+
+  /* ── layout shell ── */
+  #shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  /* ── header ── */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 11px 20px 13px;
+    flex-shrink: 0;
+    background: var(--bg);
+    z-index: 10;
+    position: relative;  /* anchor for progress bar */
+  }
+
+  .logo {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text);
+    flex-shrink: 0;
+  }
+  .logo span { color: var(--blue); }
+
+  .header-meta {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    margin-left: auto;
+    flex-wrap: wrap;
+  }
+
+  .refresh-indicator {
+    color: var(--muted);
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    cursor: default;
+  }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: blink 2s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+  @keyframes spin   { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  #refresh-icon { display: inline-block; line-height: 1; }
+  #refresh-icon.spinning { animation: spin .6s linear infinite; color: var(--blue); }
+
+  /* ── icon buttons ── */
+  .icon-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: .04em;
+    padding: 3px 9px;
+    transition: color .12s, border-color .12s, background .12s;
+    flex-shrink: 0;
+  }
+  .icon-btn:hover { color: var(--text); border-color: var(--muted); background: var(--surface); }
+  .icon-btn.active { color: var(--blue); border-color: var(--blue); background: var(--blue-bg); }
+  .icon-btn.danger { color: var(--amber); border-color: var(--amber); }
+  .icon-btn.danger:hover { background: var(--amber-bg); }
+
+  /* ── inline progress bar (bottom edge of header) ── */
+  #progress-track {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--surface);
+    display: flex;
+    overflow: hidden;
+  }
+  #progress-track.hidden { display: none; }
+  .progress-done { background: var(--green); transition: width .5s ease; }
+  .progress-prog { background: var(--blue);  transition: width .5s ease;
+                   animation: shimmer 1.5s linear infinite; }
+  .progress-fail { background: var(--red); }
+  @keyframes shimmer { 0%,100%{opacity:.8} 50%{opacity:1} }
+
+  /* ── inline stats ── */
+  .hdr-stats {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+  }
+  .hdr-stat { display: flex; align-items: center; gap: 4px; color: var(--dim); }
+  .hdr-stat strong { font-weight: 700; font-size: 13px; }
+  .hdr-stat.done  strong { color: var(--green); }
+  .hdr-stat.prog  strong { color: var(--blue);  }
+  .hdr-stat.pend  strong { color: var(--muted); }
+  .hdr-stat.fail  strong { color: var(--red);   }
+  .hdr-sep { color: var(--border); }
+
+  /* ── orchestrator log popover (floats, doesn't push layout) ── */
+  #orch-panel {
+    position: fixed;
+    right: 0;
+    width: 540px;
+    max-height: 420px;
+    z-index: 50;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--blue);
+    box-shadow: 0 12px 40px rgba(0,0,0,.7);
+    display: none;
+    flex-direction: column;
+    /* top set by JS to match header height */
+  }
+  #orch-panel.open { display: flex; }
+  .orch-panel-hdr {
+    padding: 7px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: .04em;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #0d1628;
+  }
+  #orch-log-content {
+    padding: 8px 14px;
+    font-size: 10.5px;
+    line-height: 1.65;
+    color: #8a9ab0;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    flex: 1;
+  }
+
+  /* ── grid ── */
+  #grid-wrap {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* ── task card ── */
+  .card {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* height so that exactly 2 rows fill the viewport grid area */
+    height: calc((100vh - var(--top-h)) / 2);
+    min-height: 200px;
+    transition: border-color .15s;
+  }
+  /* remove right border on last column, avoid double borders */
+  .card:nth-child(3n) { border-right: none; }
+
+  .card.in_progress {
+    box-shadow: inset 0 0 24px var(--pulse-col);
+    animation: cardpulse 3s ease-in-out infinite;
+  }
+  .card.done   { }
+  .card.failed { }
+  .card.pending { }
+
+  @keyframes cardpulse {
+    0%,100% { box-shadow: inset 0 0 20px #4f9cf910; }
+    50%      { box-shadow: inset 0 0 32px #4f9cf922; }
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px 8px;
+    flex-shrink: 0;
+  }
+
+  .task-id {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .card-title { flex: 1; font-size: 12px; font-weight: 600; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .status-badge {
+    flex-shrink: 0;
+    padding: 2px 7px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .badge-pending     { background: #1e2028; color: var(--muted); }
+  .badge-in_progress { background: var(--blue-bg);  color: var(--blue);  }
+  .badge-done        { background: var(--green-bg); color: var(--green); }
+  .badge-failed      { background: var(--red-bg);   color: var(--red);   }
+
+  /* ── card meta row ── */
+  .card-meta {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 0 14px 6px;
+    color: var(--dim);
+    font-size: 11px;
+    align-items: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .repo-tag {
+    background: #1e2028;
+    border: 1px solid var(--border);
+    padding: 1px 5px;
+    font-size: 10px;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .card-meta .timer { margin-left: auto; color: var(--amber); flex-shrink: 0; }
+
+  /* ── worktrees ── */
+  .worktrees {
+    padding: 0 14px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .wt-line {
+    font-size: 10px;
+    color: var(--dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .wt-line .wt-repo { color: var(--muted); margin-right: 4px; }
+
+  /* ── failure reason ── */
+  .failure-reason {
+    margin: 0 14px 6px;
+    background: var(--red-bg);
+    border: 1px solid #4a1e1e;
+    padding: 6px 9px;
+    font-size: 10px;
+    color: var(--red);
+    line-height: 1.5;
+    word-break: break-word;
+    flex-shrink: 0;
+  }
+
+  /* ── log pane (always open) ── */
+  .log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 14px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: .04em;
+    flex-shrink: 0;
+  }
+  .log-content {
+    padding: 8px 12px;
+    font-size: 10px;
+    line-height: 1.65;
+    color: #8a9ab0;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    flex: 1;
+  }
+  .log-content .ansi-green  { color: var(--green); }
+  .log-content .ansi-blue   { color: var(--blue);  }
+  .log-content .ansi-yellow { color: var(--amber); }
+  .log-content .ansi-red    { color: var(--red);   }
+  .log-content .ansi-dim    { color: var(--muted); }
+  .log-content .ansi-bold   { color: var(--text); font-weight: 700; }
+
+  /* ── empty / error ── */
+  .empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .empty-state code { display: block; margin-top: 10px; font-size: 11px; color: var(--blue); }
+
+  /* ── scrollbar ── */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+</style>
+</head>
+<body>
+
+<div id="shell">
+
+  <header>
+    <div class="logo">open<span>swarm</span></div>
+    <span id="hdr-scope" style="color:var(--dim);font-size:11px"></span>
+    <div class="hdr-stats" id="hdr-stats" style="display:none">
+      <div class="hdr-sep">·</div>
+      <div class="hdr-stat done"><strong id="s-done">0</strong> done</div>
+      <div class="hdr-sep">·</div>
+      <div class="hdr-stat prog"><strong id="s-prog">0</strong> running</div>
+      <div class="hdr-sep">·</div>
+      <div class="hdr-stat pend"><strong id="s-pend">0</strong> pending</div>
+      <div class="hdr-sep">·</div>
+      <div class="hdr-stat fail"><strong id="s-fail">0</strong> failed</div>
+      <div class="hdr-sep">·</div>
+      <span id="hdr-progress-label" style="color:var(--dim);font-size:11px"></span>
+    </div>
+    <div class="header-meta">
+      <span id="hdr-started" style="color:var(--dim);font-size:11px"></span>
+      <button class="icon-btn" id="orch-toggle-btn" onclick="toggleOrchPanel()" title="Orchestrator log">orchestrator log</button>
+      <button class="icon-btn danger" id="orch-restart-btn" onclick="showRestartModal('orchestrator')" title="Restart orchestrator">restart orchestrator</button>
+      <div class="refresh-indicator">
+        <span id="refresh-icon" title="auto-refresh">↻</span>
+      </div>
+    </div>
+    <!-- progress bar lives at the bottom edge of the header -->
+    <div id="progress-track" class="hidden">
+      <div class="progress-done" id="prog-done" style="width:0%"></div>
+      <div class="progress-prog" id="prog-prog" style="width:0%"></div>
+      <div class="progress-fail" id="prog-fail" style="width:0%"></div>
+    </div>
+  </header>
+
+  <div id="error-bar"></div>
+
+  <div id="orch-panel">
+    <div class="orch-panel-hdr">
+      <span>orchestrator · logs/orchestrator.log</span>
+      <span id="orch-refresh-label" style="font-size:10px;color:var(--muted)"></span>
+    </div>
+    <div id="orch-log-content"><span style="color:var(--muted)">loading…</span></div>
+  </div>
+
+  <div id="grid-wrap">
+    <div class="grid" id="grid">
+      <div class="empty-state" id="empty-state">
+        <div>No <code>state.json</code> found.</div>
+        <div style="margin-top:8px;color:var(--dim);font-size:11px">Start the swarm: <code>sudo systemctl start openswarm</code></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /shell -->
+
+<!-- modal -->
+<div id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div id="modal-box">
+    <h3 id="modal-title"></h3>
+    <p id="modal-body"></p>
+    <div class="modal-cmd" id="modal-cmd"></div>
+    <div class="modal-actions">
+      <button class="modal-copy-btn" onclick="copyModalCmd()">copy command</button>
+      <button class="modal-close-btn" onclick="closeModal()">close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const REFRESH_MS      = 10_000;
+const LOG_REFRESH_MS  = 8_000;
+const LOG_TAIL_LINES  = 80;
+const ORCH_TAIL_LINES = 60;
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let swarmState   = null;
+let logCache     = {};
+let countdown    = REFRESH_MS / 1000;
+let orchPanelOpen = false;
+
+// ── ANSI → HTML ───────────────────────────────────────────────────────────────
+function safeAnsiToHtml(raw) {
+  const escaped = raw
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return escaped
+    .replace(/\x1b\[0m/g,  '</span>')
+    .replace(/\x1b\[1m/g,  '<span class="ansi-bold">')
+    .replace(/\x1b\[2m/g,  '<span class="ansi-dim">')
+    .replace(/\x1b\[32m/g, '<span class="ansi-green">')
+    .replace(/\x1b\[33m/g, '<span class="ansi-yellow">')
+    .replace(/\x1b\[31m/g, '<span class="ansi-red">')
+    .replace(/\x1b\[34m/g, '<span class="ansi-blue">')
+    .replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
+}
+
+// ── Time helpers ──────────────────────────────────────────────────────────────
+function elapsed(isoStr) {
+  if (!isoStr) return '';
+  const s = Math.floor((Date.now() - new Date(isoStr).getTime()) / 1000);
+  if (s < 60)   return `${s}s`;
+  if (s < 3600) return `${Math.floor(s/60)}m ${s%60}s`;
+  return `${Math.floor(s/3600)}h ${Math.floor((s%3600)/60)}m`;
+}
+function duration(startIso, endIso) {
+  if (!startIso || !endIso) return '';
+  const s = Math.floor((new Date(endIso) - new Date(startIso)) / 1000);
+  if (s < 60)   return `${s}s`;
+  if (s < 3600) return `${Math.floor(s/60)}m ${s%60}s`;
+  return `${Math.floor(s/3600)}h ${Math.floor((s%3600)/60)}m`;
+}
+
+// ── Top-height CSS var (so cards size correctly) ──────────────────────────────
+function updateTopH() {
+  const h = document.querySelector('header').offsetHeight;
+  const errBar = document.getElementById('error-bar');
+  const extra = errBar.classList.contains('visible') ? errBar.offsetHeight : 0;
+  document.documentElement.style.setProperty('--top-h', (h + extra) + 'px');
+}
+
+// ── Scroll-pin tracking per log pane ─────────────────────────────────────────
+// A pane is "pinned" (auto-follows tail) unless the user has scrolled up.
+const logScrollPinned = new Set();   // task IDs pinned to tail
+let   orchScrollPinned = true;
+
+function isNearBottom(el, threshold = 40) {
+  return el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+}
+
+function attachScrollListener(taskId) {
+  const el = document.getElementById(`log-content-${taskId}`);
+  if (!el || el._slAttached) return;
+  el._slAttached = true;
+  logScrollPinned.add(taskId);  // new pane starts pinned
+  el.addEventListener('scroll', () => {
+    if (isNearBottom(el)) logScrollPinned.add(taskId);
+    else                  logScrollPinned.delete(taskId);
+  }, { passive: true });
+}
+
+function attachOrchScrollListener() {
+  const el = document.getElementById('orch-log-content');
+  if (!el || el._slAttached) return;
+  el._slAttached = true;
+  el.addEventListener('scroll', () => {
+    orchScrollPinned = isNearBottom(el);
+  }, { passive: true });
+}
+
+// ── Log fetching ──────────────────────────────────────────────────────────────
+async function fetchLog(taskId) {
+  try {
+    const r = await fetch(`logs/${taskId}-worker.log?_=${Date.now()}`);
+    if (!r.ok) return null;
+    const lines = (await r.text()).split('\n');
+    return lines.slice(-LOG_TAIL_LINES).join('\n');
+  } catch { return null; }
+}
+
+async function fetchOrchLog() {
+  try {
+    const r = await fetch(`logs/orchestrator.log?_=${Date.now()}`);
+    if (!r.ok) return null;
+    const lines = (await r.text()).split('\n');
+    return lines.slice(-ORCH_TAIL_LINES).join('\n');
+  } catch { return null; }
+}
+
+async function refreshAllLogs() {
+  if (!swarmState) return;
+  for (const [taskId] of Object.entries(swarmState.tasks || {})) {
+    const text = await fetchLog(taskId);
+    if (text === null) continue;
+    logCache[taskId] = text;
+    const el = document.getElementById(`log-content-${taskId}`);
+    if (el) {
+      const pinned = logScrollPinned.has(taskId);
+      // Save relative scroll offset from bottom before rewriting innerHTML
+      const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      el.innerHTML = safeAnsiToHtml(text);
+      if (pinned) {
+        el.scrollTop = el.scrollHeight;
+      } else {
+        // Restore user's position relative to the bottom
+        el.scrollTop = el.scrollHeight - el.clientHeight - distFromBottom;
+      }
+    }
+  }
+  if (orchPanelOpen) await refreshOrchLog();
+}
+
+async function refreshOrchLog() {
+  const text = await fetchOrchLog();
+  const el = document.getElementById('orch-log-content');
+  if (text && el) {
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    el.innerHTML = safeAnsiToHtml(text);
+    if (orchScrollPinned) {
+      el.scrollTop = el.scrollHeight;
+    } else {
+      el.scrollTop = el.scrollHeight - el.clientHeight - distFromBottom;
+    }
+  }
+  document.getElementById('orch-refresh-label').textContent =
+    new Date().toLocaleTimeString();
+}
+
+// ── Orchestrator panel ────────────────────────────────────────────────────────
+async function toggleOrchPanel() {
+  const panel  = document.getElementById('orch-panel');
+  const btn    = document.getElementById('orch-toggle-btn');
+  const header = document.querySelector('header');
+  orchPanelOpen = !orchPanelOpen;
+  if (orchPanelOpen) {
+    // Position flush below the header, right-aligned
+    panel.style.top = header.offsetHeight + 'px';
+    attachOrchScrollListener();
+  }
+  panel.classList.toggle('open', orchPanelOpen);
+  btn.classList.toggle('active', orchPanelOpen);
+  if (orchPanelOpen) await refreshOrchLog();
+}
+
+// Close orch panel when clicking outside of it
+document.addEventListener('click', e => {
+  if (!orchPanelOpen) return;
+  const panel = document.getElementById('orch-panel');
+  const btn   = document.getElementById('orch-toggle-btn');
+  if (!panel.contains(e.target) && !btn.contains(e.target)) {
+    orchPanelOpen = false;
+    panel.classList.remove('open');
+    btn.classList.remove('active');
+  }
+});
+
+// ── Restart modal ─────────────────────────────────────────────────────────────
+function showRestartModal(target) {
+  let title, body, cmd;
+  if (target === 'orchestrator') {
+    title = 'Restart orchestrator';
+    body  = 'The orchestrator service is managed by systemd. Run this command in your ubuntu terminal to start a new run (using the current swarm.env args):';
+    cmd   = 'sudo systemctl start openswarm';
+  } else {
+    // target is a task ID
+    title = `Restart worker: ${target}`;
+    body  = `Individual workers are managed by the orchestrator. To force a retry of ${target}, edit state.json to set its status back to "pending", then restart the orchestrator:`;
+    cmd   = `sudo systemctl start openswarm  # ensure swarm.env has SWARM_ARGS=--resume`;
+  }
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').textContent  = body;
+  document.getElementById('modal-cmd').textContent   = cmd;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+function copyModalCmd() {
+  const cmd = document.getElementById('modal-cmd').textContent;
+  navigator.clipboard.writeText(cmd).then(() => {
+    const btn = document.querySelector('.modal-copy-btn');
+    const orig = btn.textContent;
+    btn.textContent = 'copied!';
+    setTimeout(() => btn.textContent = orig, 1500);
+  });
+}
+
+// ── Card rendering ────────────────────────────────────────────────────────────
+function statusBadge(status) {
+  const labels = { pending:'pending', in_progress:'running', done:'done', failed:'failed' };
+  return `<span class="status-badge badge-${status}">${labels[status] || status}</span>`;
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderCard(taskId, task, depsArr) {
+  const meta   = (depsArr || []).find(d => d.id === taskId) || {};
+  const title  = meta.title || taskId;
+  const repos  = meta.repos || [];
+  const status = task.status || 'pending';
+
+  let timerHtml = '';
+  if (status === 'in_progress' && task.started_at) {
+    timerHtml = `<span class="timer" id="timer-${taskId}">${elapsed(task.started_at)}</span>`;
+  } else if ((status === 'done' || status === 'failed') && task.started_at && task.finished_at) {
+    timerHtml = `<span style="color:var(--dim)">${duration(task.started_at, task.finished_at)}</span>`;
+  } else if (task.started_at) {
+    timerHtml = `<span class="timer" id="timer-${taskId}">${elapsed(task.started_at)}</span>`;
+  }
+
+  const repoTagsHtml = repos.map(r => `<span class="repo-tag">${r}</span>`).join('');
+  const attempts = task.attempts > 0
+    ? `<span style="color:var(--dim)">attempt ${task.attempts}/2</span>` : '';
+
+  let worktreesHtml = '';
+  if (task.worktrees && Object.keys(task.worktrees).length) {
+    worktreesHtml = `<div class="worktrees">` +
+      Object.entries(task.worktrees).map(([repo, path]) => {
+        const short = path.replace('/home/ubuntu/server/yact/', '');
+        return `<div class="wt-line"><span class="wt-repo">${repo}</span>${short}</div>`;
+      }).join('') + `</div>`;
+  }
+
+  let failureHtml = '';
+  if (status === 'failed' && task.failure_reason) {
+    failureHtml = `<div class="failure-reason">${escHtml(task.failure_reason)}</div>`;
+  }
+  if (status === 'failed' && task.investigator_diagnosis && task.investigator_diagnosis.trim().length > 4) {
+    failureHtml += `<div class="failure-reason" style="background:#1a1008;border-color:#4a3010;color:var(--amber)"><strong>diagnosis:</strong> ${escHtml(task.investigator_diagnosis.substring(0, 280))}</div>`;
+  }
+
+  const logText = logCache[taskId] || '';
+
+  return `
+<div class="card ${status}" id="card-${taskId}">
+  <div class="card-header">
+    <span class="task-id">${taskId}</span>
+    <span class="card-title">${escHtml(title)}</span>
+    ${statusBadge(status)}
+    <button class="icon-btn" style="font-size:9px;padding:2px 6px;margin-left:4px" onclick="showRestartModal('${taskId}')" title="Restart this worker">⟳</button>
+  </div>
+  <div class="card-meta">
+    ${repoTagsHtml}
+    ${attempts}
+    ${timerHtml}
+  </div>
+  ${worktreesHtml}
+  ${failureHtml}
+  <div class="log-header">
+    <span>worker log</span>
+    <span style="color:var(--muted);font-size:9px">tail ${LOG_TAIL_LINES}</span>
+  </div>
+  <div class="log-content" id="log-content-${taskId}">${logText ? safeAnsiToHtml(logText) : '<span style="color:var(--muted)">loading…</span>'}</div>
+</div>`;
+}
+
+// ── Main render ───────────────────────────────────────────────────────────────
+let deps = null;
+
+async function fetchDeps() {
+  try {
+    const r = await fetch('../yact-dev-docs/.tasks/open/ROADMAP_DEPS.json?_=' + Date.now());
+    if (r.ok) deps = await r.json();
+  } catch {}
+}
+
+async function refresh() {
+  try {
+    const r = await fetch('state.json?_=' + Date.now());
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    swarmState = await r.json();
+    setStale(false);
+    render(swarmState);
+  } catch (e) {
+    // Never wipe the display — keep showing the last known state.
+    // Only show empty placeholder if we've never loaded anything at all.
+    if (!swarmState) {
+      renderEmpty();
+    }
+    setStale(true, e.message.includes('404') ? 'no state.json yet' : e.message);
+  }
+  setTimeout(updateTopH, 50);
+}
+
+function setStale(isStale, reason) {
+  const icon = document.getElementById('refresh-icon');
+  if (isStale) {
+    icon.style.color = 'var(--amber)';
+    icon.title = reason || 'state.json unreachable';
+  } else {
+    icon.style.color = '';
+    icon.title = 'auto-refresh';
+  }
+}
+
+function renderEmpty() {
+  document.getElementById('progress-track').classList.add('hidden');
+  document.getElementById('hdr-stats').style.display = 'none';
+  document.getElementById('grid').innerHTML = `
+    <div class="empty-state">
+      <div>No run data yet.</div>
+      <div style="margin-top:8px;color:var(--dim);font-size:11px">
+        Start a run: <code style="color:var(--blue)">sudo systemctl start openswarm</code>
+      </div>
+    </div>`;
+  document.getElementById('hdr-scope').textContent = '';
+  document.getElementById('hdr-started').textContent = '';
+}
+
+function render(state) {
+  const tasks = state.tasks || {};
+  const scope = state.scope || Object.keys(tasks);
+  const total = scope.length;
+
+  const counts = { done:0, in_progress:0, pending:0, failed:0 };
+  scope.forEach(id => {
+    const s = (tasks[id] || {}).status || 'pending';
+    counts[s] = (counts[s] || 0) + 1;
+  });
+
+  document.getElementById('hdr-scope').textContent = scope.join(' · ');
+  document.getElementById('hdr-started').textContent =
+    state.started_at ? `${elapsed(state.started_at)} elapsed` : '';
+
+  if (total > 0) {
+    document.getElementById('progress-track').classList.remove('hidden');
+    document.getElementById('prog-done').style.width = `${counts.done/total*100}%`;
+    document.getElementById('prog-prog').style.width = `${counts.in_progress/total*100}%`;
+    document.getElementById('prog-fail').style.width = `${counts.failed/total*100}%`;
+    document.getElementById('hdr-progress-label').textContent = `${counts.done}/${total}`;
+  }
+
+  document.getElementById('hdr-stats').style.display = 'flex';
+  document.getElementById('s-done').textContent = counts.done;
+  document.getElementById('s-prog').textContent = counts.in_progress;
+  document.getElementById('s-pend').textContent = counts.pending;
+  document.getElementById('s-fail').textContent = counts.failed;
+
+  const ORDER = { in_progress:0, pending:1, done:2, failed:3 };
+  const ordered = [...scope].sort((a,b) =>
+    (ORDER[(tasks[a]||{}).status] ?? 4) - (ORDER[(tasks[b]||{}).status] ?? 4)
+  );
+
+  const grid = document.getElementById('grid');
+  const existing = [...grid.querySelectorAll('.card')].map(c => c.id.replace('card-',''));
+  const needsRebuild = JSON.stringify(existing) !== JSON.stringify(ordered);
+
+  if (needsRebuild) {
+    // Save scroll state before destroying DOM
+    const scrollState = {};
+    ordered.forEach(id => {
+      const el = document.getElementById(`log-content-${id}`);
+      if (el) scrollState[id] = {
+        distFromBottom: el.scrollHeight - el.scrollTop - el.clientHeight,
+        pinned: logScrollPinned.has(id),
+      };
+    });
+
+    grid.innerHTML = ordered.map(id => renderCard(id, tasks[id] || {}, deps)).join('');
+
+    // Restore scroll positions and attach listeners on new elements
+    ordered.forEach(id => {
+      const el = document.getElementById(`log-content-${id}`);
+      if (!el) return;
+      const prev = scrollState[id];
+      if (prev) {
+        if (prev.pinned) {
+          el.scrollTop = el.scrollHeight;
+          logScrollPinned.add(id);
+        } else {
+          el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight - prev.distFromBottom);
+          logScrollPinned.delete(id);
+        }
+      } else {
+        el.scrollTop = el.scrollHeight;  // brand new card — start at tail
+      }
+      attachScrollListener(id);
+    });
+  } else {
+    ordered.forEach(id => {
+      const card = document.getElementById(`card-${id}`);
+      if (!card) return;
+      const task = tasks[id] || {};
+      const badge = card.querySelector('.status-badge');
+      if (badge) badge.outerHTML = statusBadge(task.status || 'pending');
+      card.className = `card ${task.status || 'pending'}`;
+      const timer = document.getElementById(`timer-${id}`);
+      if (timer && task.started_at) timer.textContent = elapsed(task.started_at);
+    });
+  }
+
+  setTimeout(updateTopH, 50);
+}
+
+// ── Countdown ticker ──────────────────────────────────────────────────────────
+async function tick() {
+  countdown--;
+
+  if (countdown <= 0) {
+    countdown = REFRESH_MS / 1000;
+    document.getElementById('refresh-icon').classList.add('spinning');
+    await Promise.all([refresh(), refreshAllLogs()]);
+    document.getElementById('refresh-icon').classList.remove('spinning');
+  }
+
+  if (swarmState) {
+    Object.entries(swarmState.tasks || {}).forEach(([id, task]) => {
+      if (task.started_at) {
+        const el = document.getElementById(`timer-${id}`);
+        if (el) el.textContent = elapsed(task.started_at);
+      }
+    });
+  }
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+(async () => {
+  await fetchDeps();
+  await refresh();
+  await refreshAllLogs();
+  // Attach scroll listeners to any cards already in the DOM
+  if (swarmState) Object.keys(swarmState.tasks || {}).forEach(attachScrollListener);
+  setInterval(tick, 1000);
+  window.addEventListener('resize', updateTopH);
+})();
+</script>
+</body>
+</html>

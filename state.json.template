@@ -1,0 +1,42 @@
+{
+  "scope": ["T-210", "T-211", "T-212"],
+  "tasks": {
+    "T-210": {
+      "status": "pending",
+      "attempts": 0,
+      "branches": {},
+      "worktrees": {},
+      "sentinel": null,
+      "failure_reason": null,
+      "investigator_diagnosis": null,
+      "worker_pid": null,
+      "started_at": null,
+      "finished_at": null
+    },
+    "T-211": {
+      "status": "pending",
+      "attempts": 0,
+      "branches": {},
+      "worktrees": {},
+      "sentinel": null,
+      "failure_reason": null,
+      "investigator_diagnosis": null,
+      "worker_pid": null,
+      "started_at": null,
+      "finished_at": null
+    },
+    "T-212": {
+      "status": "pending",
+      "attempts": 0,
+      "branches": {},
+      "worktrees": {},
+      "sentinel": null,
+      "failure_reason": null,
+      "investigator_diagnosis": null,
+      "worker_pid": null,
+      "started_at": null,
+      "finished_at": null
+    }
+  },
+  "started_at": null
+}

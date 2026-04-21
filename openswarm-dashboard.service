@@ -1,0 +1,22 @@
+[Unit]
+Description=openswarm Dashboard (port 7700)
+Documentation=https://github.com/bk-bf/yact
+After=network.target
+
+[Service]
+Type=simple
+User=agent
+Group=agent
+WorkingDirectory=/home/ubuntu/server/openswarm
+Environment=HOME=/home/agent
+Environment=PATH=/home/agent/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=python3 -m http.server 7700 --directory /home/ubuntu/server/openswarm --bind 0.0.0.0
+Restart=always
+RestartSec=5
+
+# Resource limits
+MemoryMax=256M
+MemorySwapMax=64M
+
+[Install]
+WantedBy=multi-user.target
