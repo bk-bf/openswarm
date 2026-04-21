@@ -724,8 +724,8 @@ function renderCard(taskId, task, depsArr) {
   return `
 <div class="card ${status}" id="card-${taskId}">
   <div class="card-header">
-    <span class="task-id">${taskId}</span>
-    <span class="card-title">${title && title !== taskId ? escHtml(title) : '<span style="color:var(--muted);font-weight:400">task</span>'}</span>
+    <span class="task-id" style="color:var(--muted);font-weight:400">task</span>
+    <span class="card-title">${title && title !== taskId ? escHtml(title) : escHtml(taskId)}</span>
     ${errIconsHtml}
     ${statusBadge(status)}
     <button class="icon-btn" style="font-size:9px;padding:2px 6px;margin-left:4px" onclick="showRestartModal('${taskId}')" title="Restart this worker">⟳</button>
