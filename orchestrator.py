@@ -48,9 +48,12 @@ INV_TMPL = SWARM_DIR / "prompts" / "investigator.md"
 
 # Default model for all worker sessions.  Overridden by --model CLI arg.
 # Individual tasks can override this via the "model" field in ROADMAP_DEPS.json.
+# At startup, main() also checks settings.json (written by the dashboard UI).
 DEFAULT_MODEL: str = "github-copilot/claude-sonnet-4.6"
 # Model used for investigator sessions (defaults to DEFAULT_MODEL).
 INVESTIGATOR_MODEL: str | None = None  # None → resolved to DEFAULT_MODEL at runtime
+
+SETTINGS_FILE = SWARM_DIR / "settings.json"
 
 # ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -769,6 +772,14 @@ def main():
 
     if args.model:
         DEFAULT_MODEL = args.model
+    elif SETTINGS_FILE.exists():
+        try:
+            s = json.loads(SETTINGS_FILE.read_text())
+            if s.get("model"):
+                DEFAULT_MODEL = s["model"]
+                log(f"model loaded from settings.json: {DEFAULT_MODEL}")
+        except Exception as e:
+            log(f"could not read settings.json: {e}", "WARN")
     INVESTIGATOR_MODEL = args.investigator_model  # None → falls back to DEFAULT_MODEL
     log(f"worker model:      {DEFAULT_MODEL}")
 

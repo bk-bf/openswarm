@@ -385,7 +385,8 @@
     border-left: 2px solid #26292f;
   }
 
-  /* ── empty / error ── */
+  /* ── scrollbar ── */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
   .empty-state {
     grid-column: 1 / -1;
     text-align: center;
@@ -395,8 +396,113 @@
   }
   .empty-state code { display: block; margin-top: 10px; font-size: 11px; color: var(--blue); }
 
-  /* ── scrollbar ── */
-  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  /* ── settings panel ── */
+  #settings-panel {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: 340px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    box-shadow: -12px 0 40px rgba(0,0,0,.6);
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform .2s ease;
+  }
+  #settings-panel.open { transform: translateX(0); }
+
+  .settings-hdr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 16px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .settings-hdr-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    color: var(--dim);
+    text-transform: uppercase;
+  }
+
+  .settings-body {
+    padding: 18px 16px;
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .settings-field { display: flex; flex-direction: column; gap: 6px; }
+  .settings-label {
+    font-size: 10px;
+    letter-spacing: .05em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .settings-hint {
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .model-select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12px;
+    padding: 7px 10px;
+    width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    outline: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234a4f5a'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px;
+  }
+  .model-select:focus { border-color: var(--blue); }
+  .model-select option { background: #1a1c22; }
+  .model-select optgroup { color: var(--muted); font-size: 10px; }
+
+  .settings-save-btn {
+    background: var(--blue-bg);
+    border: 1px solid var(--blue);
+    color: var(--blue);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    padding: 7px 16px;
+    cursor: pointer;
+    transition: background .12s;
+    align-self: flex-start;
+  }
+  .settings-save-btn:hover { background: #1a3a6a; }
+  .settings-save-btn:disabled { opacity: .4; cursor: default; }
+  .settings-save-btn.saved { color: var(--green); border-color: var(--green); background: var(--green-bg); }
+
+  .settings-status {
+    font-size: 10px;
+    color: var(--muted);
+    min-height: 14px;
+  }
+
+  /* overlay backdrop */
+  #settings-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(0,0,0,.35);
+  }
+  #settings-backdrop.open { display: block; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); }
 </style>
@@ -421,6 +527,7 @@
     </div>
     <div class="header-meta">
       <span id="hdr-started" style="color:var(--dim);font-size:11px"></span>
+      <button class="icon-btn" id="settings-btn" onclick="toggleSettings()" title="Settings">⚙ settings</button>
       <button class="icon-btn" id="orch-toggle-btn" onclick="toggleOrchPanel()" title="Orchestrator log">orchestrator log</button>
       <button class="icon-btn danger" id="orch-restart-btn" onclick="showRestartModal('orchestrator')" title="Restart orchestrator">restart orchestrator</button>
       <div class="live-indicator">
@@ -450,6 +557,35 @@
   </div>
 
 </div><!-- /shell -->
+
+<!-- settings panel -->
+<div id="settings-backdrop" onclick="closeSettings()"></div>
+<div id="settings-panel">
+  <div class="settings-hdr">
+    <span class="settings-hdr-title">settings</span>
+    <button class="icon-btn" onclick="closeSettings()">✕ close</button>
+  </div>
+  <div class="settings-body">
+
+    <div class="settings-field">
+      <label class="settings-label" for="model-select">default worker model</label>
+      <select class="model-select" id="model-select">
+        <option value="">loading models…</option>
+      </select>
+      <span class="settings-hint">
+        Applied to every new worker session. Per-task <code style="color:var(--blue)">"model"</code>
+        in <code style="color:var(--blue)">ROADMAP_DEPS.json</code> overrides this.
+        Takes effect on the next orchestrator run.
+      </span>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="settings-save-btn" id="settings-save-btn" onclick="saveSettings()">save</button>
+      <span class="settings-status" id="settings-status"></span>
+    </div>
+
+  </div>
+</div>
 
 <!-- modal -->
 <div id="modal-overlay" onclick="if(event.target===this)closeModal()">
@@ -994,6 +1130,123 @@ async function tick() {
         if (el) el.textContent = elapsed(task.started_at);
       }
     });
+  }
+}
+
+// ── Settings panel ────────────────────────────────────────────────────────────
+let settingsOpen = false;
+let settingsModels = [];
+let settingsCurrentModel = '';
+
+async function toggleSettings() {
+  if (settingsOpen) { closeSettings(); return; }
+  settingsOpen = true;
+  document.getElementById('settings-panel').classList.add('open');
+  document.getElementById('settings-backdrop').classList.add('open');
+  document.getElementById('settings-btn').classList.add('active');
+  await loadSettingsData();
+}
+
+function closeSettings() {
+  settingsOpen = false;
+  document.getElementById('settings-panel').classList.remove('open');
+  document.getElementById('settings-backdrop').classList.remove('open');
+  document.getElementById('settings-btn').classList.remove('active');
+}
+
+async function loadSettingsData() {
+  const sel = document.getElementById('model-select');
+  sel.innerHTML = '<option value="">loading…</option>';
+  document.getElementById('settings-status').textContent = '';
+
+  // Fetch current setting and model list in parallel
+  const [settingsRes, modelsRes] = await Promise.allSettled([
+    fetch('/api/settings').then(r => r.json()),
+    fetch('/api/models').then(r => r.json()),
+  ]);
+
+  const current = (settingsRes.status === 'fulfilled' && settingsRes.value?.model)
+    ? settingsRes.value.model : '';
+  settingsCurrentModel = current;
+
+  if (modelsRes.status !== 'fulfilled' || !Array.isArray(modelsRes.value)) {
+    sel.innerHTML = '<option value="">failed to load models</option>';
+    return;
+  }
+
+  settingsModels = modelsRes.value;
+  populateModelSelect(sel, settingsModels, current);
+}
+
+function populateModelSelect(sel, models, selected) {
+  // Group by provider (prefix before first '/')
+  const groups = {};
+  for (const m of models) {
+    const slash = m.indexOf('/');
+    const provider = slash > -1 ? m.slice(0, slash) : 'other';
+    (groups[provider] = groups[provider] || []).push(m);
+  }
+
+  sel.innerHTML = '';
+  for (const [provider, items] of Object.entries(groups)) {
+    const grp = document.createElement('optgroup');
+    grp.label = provider;
+    for (const m of items) {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = m;
+      if (m === selected) opt.selected = true;
+      grp.appendChild(opt);
+    }
+    sel.appendChild(grp);
+  }
+
+  // If nothing matched, add current as a manual entry
+  if (selected && !models.includes(selected)) {
+    const opt = document.createElement('option');
+    opt.value = selected;
+    opt.textContent = selected + ' (current)';
+    opt.selected = true;
+    sel.prepend(opt);
+  }
+}
+
+async function saveSettings() {
+  const sel = document.getElementById('model-select');
+  const btn = document.getElementById('settings-save-btn');
+  const status = document.getElementById('settings-status');
+  const model = sel.value;
+  if (!model) return;
+
+  btn.disabled = true;
+  status.textContent = 'saving…';
+  status.style.color = 'var(--dim)';
+
+  try {
+    const r = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model }),
+    });
+    const data = await r.json();
+    if (data.ok) {
+      settingsCurrentModel = model;
+      btn.classList.add('saved');
+      btn.textContent = 'saved ✓';
+      status.textContent = model;
+      status.style.color = 'var(--green)';
+      setTimeout(() => {
+        btn.classList.remove('saved');
+        btn.textContent = 'save';
+        btn.disabled = false;
+      }, 2000);
+    } else {
+      throw new Error(data.error || 'unknown error');
+    }
+  } catch (e) {
+    status.textContent = 'error: ' + e.message;
+    status.style.color = 'var(--red)';
+    btn.disabled = false;
   }
 }
 

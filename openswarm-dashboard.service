@@ -10,7 +10,7 @@ Group=agent
 WorkingDirectory=/home/ubuntu/server/openswarm
 Environment=HOME=/home/agent
 Environment=PATH=/home/agent/.local/bin:/usr/local/bin:/usr/bin:/bin
-ExecStart=python3 -m http.server 7700 --directory /home/ubuntu/server/openswarm --bind 0.0.0.0
+ExecStart=python3 /home/ubuntu/server/openswarm/server.py
 Restart=always
 RestartSec=5
 
