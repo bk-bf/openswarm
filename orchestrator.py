@@ -48,7 +48,7 @@ INV_TMPL = SWARM_DIR / "prompts" / "investigator.md"
 
 # Default model for all worker sessions.  Overridden by --model CLI arg.
 # Individual tasks can override this via the "model" field in ROADMAP_DEPS.json.
-DEFAULT_MODEL: str = "anthropic/claude-sonnet-4-5"
+DEFAULT_MODEL: str = "github-copilot/claude-sonnet-4.6"
 # Model used for investigator sessions (defaults to DEFAULT_MODEL).
 INVESTIGATOR_MODEL: str | None = None  # None → resolved to DEFAULT_MODEL at runtime
 
