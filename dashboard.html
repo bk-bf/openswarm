@@ -8,6 +8,7 @@
   :root {
     --bg:        #0d0d0f;
     --surface:   #16181d;
+    --surface2:  #1a1d24;
     --border:    #26292f;
     --muted:     #4a4f5a;
     --text:      #d4d8e2;
@@ -134,6 +135,42 @@
   .hdr-stat.fail  strong { color: var(--red);   }
   .hdr-sep { color: var(--border); }
 
+  /* ── autonomous toggle ── */
+  .auto-toggle-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: .04em;
+  }
+  .auto-toggle {
+    position: relative;
+    width: 32px;
+    height: 17px;
+    cursor: pointer;
+  }
+  .auto-toggle input { opacity: 0; width: 0; height: 0; }
+  .auto-toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 17px;
+    transition: background .2s;
+  }
+  .auto-toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 13px; height: 13px;
+    left: 2px; top: 2px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform .2s;
+  }
+  .auto-toggle input:checked + .auto-toggle-slider { background: var(--green); }
+  .auto-toggle input:checked + .auto-toggle-slider::before { transform: translateX(15px); }
+  #auto-label { user-select: none; }
+
   /* ── orchestrator log — full-viewport dropdown ── */
   #orch-panel {
     position: fixed;
@@ -246,6 +283,18 @@
   .badge-in_progress { background: var(--blue-bg);  color: var(--blue);  }
   .badge-done        { background: var(--green-bg); color: var(--green); }
   .badge-failed      { background: var(--red-bg);   color: var(--red);   }
+  /* worker card running badge — green + subtle pulse */
+  .status-badge.running, .badge-running {
+    background: var(--green-bg); color: var(--green);
+    animation: running-pulse 2s ease-in-out infinite;
+  }
+  .badge-dead, .badge-aborted {
+    background: var(--red-bg); color: var(--red);
+  }
+  @keyframes running-pulse {
+    0%,100% { box-shadow: 0 0 0 0 transparent; }
+    50%      { box-shadow: 0 0 6px 1px #3dd68c33; }
+  }
 
   .timer { color: var(--amber); }
 
@@ -315,7 +364,34 @@
     font-size: 10px;
     letter-spacing: .04em;
     flex-shrink: 0;
+    gap: 8px;
   }
+  .log-header-left  { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+  .log-header-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+  /* ── expanded card overlay ── */
+  .card.expanded {
+    position: fixed;
+    top: var(--top-h);
+    left: 0; right: 0; bottom: 0;
+    z-index: 40;
+    height: auto !important;
+    border: none;
+    border-top: 2px solid var(--blue);
+    box-shadow: 0 -8px 40px rgba(0,0,0,.7);
+  }
+  /* Safety net: keep chat input above bottom bar if it ever shows */
+  .card.expanded .chat-input-area { padding-bottom: 30px; }
+
+  /* expand button */
+  .expand-btn {
+    background: none; border: 1px solid transparent; color: var(--muted);
+    font-family: inherit; font-size: 11px; line-height: 1;
+    padding: 1px 5px; cursor: pointer; flex-shrink: 0;
+    transition: color .1s, border-color .1s;
+  }
+  .expand-btn:hover { color: var(--text); border-color: var(--border); }
+  .card.expanded .expand-btn { color: var(--blue); border-color: var(--blue); }
   .log-content {
     padding: 6px 0;
     font-size: 11.5px;
@@ -384,6 +460,256 @@
     padding-left: 28px;
     border-left: 2px solid #26292f;
   }
+
+  /* ── session view ── */
+  .sv-msg { padding: 6px 14px; border-bottom: 1px solid #1a1d23; }
+  .sv-msg:last-child { border-bottom: none; }
+  .sv-role {
+    font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 3px;
+  }
+  .sv-role.user  { color: var(--blue); }
+  .sv-role.asst  { color: var(--green); }
+  .sv-text { font-size: 11.5px; line-height: 1.6; color: #c8cdd8; white-space: pre-wrap; word-break: break-word; }
+  .sv-tool {
+    display: flex; align-items: baseline; gap: 6px;
+    font-size: 11px; padding: 2px 0;
+  }
+  .sv-tool-name { color: var(--blue); font-weight: 600; flex-shrink: 0; }
+  .sv-tool-input { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .sv-tool-ok  { color: var(--green); font-size: 10px; flex-shrink: 0; }
+  .sv-tool-err { color: var(--red);   font-size: 10px; flex-shrink: 0; }
+  .sv-reasoning { font-size: 10.5px; color: var(--muted); font-style: italic; line-height: 1.5; padding: 1px 0; }
+  .sv-no-session { padding: 12px 14px; color: var(--muted); font-size: 11px; }
+
+  /* ── session message feed ── */
+  .sv-feed { display: flex; flex-direction: column; padding: 8px 0 4px; }
+  /* user messages — right-aligned pill */
+  .sv-msg-user {
+    display: flex; justify-content: flex-end;
+    padding: 4px 12px 4px 40px;
+  }
+  .sv-user-bubble {
+    background: var(--blue-bg); border: 1px solid #1e3a5f;
+    color: #b8d4f8; padding: 6px 12px; max-width: 100%;
+    font-size: 11.5px; line-height: 1.65; white-space: pre-wrap; word-break: break-word;
+  }
+  /* assistant messages — full width, minimal chrome */
+  .sv-msg-assistant {
+    display: flex; flex-direction: column; gap: 1px;
+    padding: 3px 0;
+  }
+  .sv-asst-text {
+    padding: 2px 14px 3px;
+    font-size: 11.5px; line-height: 1.65; color: #c4c9d6;
+    word-break: break-word;
+  }
+  .sv-asst-text > div:last-child { margin-bottom: 0; }
+
+  /* ── markdown ── */
+  .md-p { margin-bottom: 5px; }
+  .md-p:last-child { margin-bottom: 0; }
+  .md-h1, .md-h2, .md-h3 { font-weight: 700; color: var(--text); margin: 8px 0 3px; }
+  .md-h1 { font-size: 13px; } .md-h2 { font-size: 12.5px; } .md-h3 { font-size: 12px; }
+  .md-code { background: #0d0f12; border: 1px solid #2a2d35; padding: 1px 4px; font-size: 10.5px; color: #e8c97a; }
+  .md-pre { background: #0d0f12; border: 1px solid #1e2330; padding: 7px 10px; margin: 4px 0; overflow-x: auto; font-size: 10.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
+  .md-pre code { color: #9aa3b2; }
+  .md-li { padding-left: 14px; position: relative; margin-bottom: 2px; }
+  .md-li::before { content: '·'; position: absolute; left: 4px; color: var(--muted); }
+  .md-ul { margin: 3px 0 5px; }
+  .md-b { font-weight: 700; color: var(--text); }
+  .md-i { font-style: italic; }
+
+  /* ── tool rows — OC-style flat design ── */
+  .tr {
+    border-left: 2px solid transparent;
+    margin: 1px 0;
+  }
+  .tr summary {
+    display: flex; align-items: center; gap: 7px;
+    padding: 3px 12px 3px 12px;
+    cursor: pointer; list-style: none; user-select: none;
+    min-width: 0;
+  }
+  .tr summary::-webkit-details-marker { display: none; }
+  .tr summary:hover { background: rgba(255,255,255,.022); }
+  .tr[open] { border-left-color: #26292f; background: rgba(0,0,0,.12); }
+  .tr[open] > summary { background: rgba(255,255,255,.018); }
+  /* icon */
+  .tr-icon { font-style: normal; font-size: 11px; flex-shrink: 0; opacity: .65; width: 14px; text-align: center; line-height: 1; }
+  /* tool name */
+  .tr-name { color: var(--text); font-weight: 600; font-size: 10.5px; flex-shrink: 0; }
+  /* path — dir in dim, filename in slightly brighter */
+  .tr-desc { color: var(--muted); font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+  .tr-dir  { color: #353a47; }
+  .tr-sep  { color: #353a47; }
+  .tr-file { color: var(--dim); }
+  /* status badge */
+  .tr-status { flex-shrink: 0; margin-left: 2px; font-size: 9px; letter-spacing: 0; }
+  .ts-ok  { color: var(--green); }
+  .ts-err { color: var(--red); }
+  .ts-run { color: var(--amber); }
+  /* diff stats +N/-N */
+  .tr-stat-add { color: var(--green); font-size: 9.5px; flex-shrink: 0; }
+  .tr-stat-rem { color: var(--red); font-size: 9.5px; flex-shrink: 0; }
+  /* body content */
+  .tr-body { padding: 4px 12px 8px 33px; }
+  .tr-output {
+    font-size: 10.5px; color: #6a7080; white-space: pre-wrap; word-break: break-word;
+    line-height: 1.5; margin: 0; max-height: 220px; overflow-y: auto;
+    background: #0b0d10; border: 1px solid #1a1d24; padding: 6px 9px;
+  }
+  /* flat tool (no expandable body) */
+  .tr-flat {
+    display: flex; align-items: center; gap: 7px;
+    padding: 2px 12px 2px 12px; font-size: 10.5px;
+    border-left: 2px solid transparent;
+  }
+  .tr-flat .tr-name { font-weight: 500; color: var(--dim); }
+
+  /* ── inline diff ── */
+  .diff-view { font-size: 10.5px; line-height: 1.5; }
+  .diff-line { display: block; padding: 0 4px; white-space: pre-wrap; word-break: break-all; font-family: inherit; }
+  .diff-add  { background: #091e12; color: #4fad76; }
+  .diff-rem  { background: #1e0909; color: #c05050; }
+  .diff-ctx  { color: #3d4353; }
+  .diff-skip { color: var(--blue); font-size: 9.5px; padding: 1px 4px; background: #0d1628; display: block; }
+  .diff-fhdr { color: var(--dim); font-weight: 600; font-size: 10px; padding: 3px 8px;
+               background: #14161c; border: 1px solid #1e2330; margin: 4px 0 0; display: block; }
+  .diff-hunk { color: #4a6a96; font-size: 9.5px; padding: 1px 4px; background: #0d1628; display: block; }
+
+  /* ── reasoning block ── */
+  .rr {
+    margin: 1px 0; padding: 0 12px;
+    border-left: 2px solid transparent;
+  }
+  .rr summary {
+    display: flex; align-items: center; gap: 5px;
+    padding: 1px 0; cursor: pointer; list-style: none;
+    color: #353a47; font-size: 10px; user-select: none;
+  }
+  .rr summary::-webkit-details-marker { display: none; }
+  .rr[open] { border-left-color: #252830; }
+  .rr[open] > summary { color: var(--muted); }
+  .rr-body {
+    padding: 2px 0 4px 18px; font-size: 10px; color: #3d4353;
+    line-height: 1.55; max-height: 90px; overflow-y: auto;
+    font-style: italic; white-space: pre-wrap; word-break: break-word;
+  }
+  /* retry notice */
+  .sv-retry { color: var(--amber); font-size: 10px; padding: 1px 14px; }
+
+  /* ── chat input ── */
+  .chat-input-area {
+    display: none;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+    flex-shrink: 0;
+    align-items: stretch;
+  }
+  .chat-input-area.visible { display: flex; }
+  /* orch panel: column layout so toolbar sits below textarea row */
+  .chat-input-orch { flex-direction: column; }
+  .chat-main-row { display: flex; align-items: stretch; flex: 1; }
+  .chat-input-orch .chat-textarea { min-height: 84px; max-height: 220px; }
+  /* on non-expanded worker cards: collapse toolbar + keep textarea compact */
+  .card:not(.expanded) .chat-toolbar { display: none; }
+  .card:not(.expanded) .chat-input-orch .chat-textarea { min-height: 28px; max-height: 72px; }
+  /* expanded worker card: match orch panel textarea height */
+  .card.expanded .chat-input-orch .chat-textarea { min-height: 84px; max-height: 220px; }
+  .chat-textarea {
+    flex: 1; background: transparent; border: none;
+    color: var(--text); font-family: inherit; font-size: 11px;
+    padding: 5px 8px; resize: none; min-height: 28px; max-height: 72px;
+    line-height: 1.4; outline: none;
+  }
+  .chat-attachments {
+    display: flex; flex-wrap: wrap; gap: 4px;
+    padding: 4px 8px 2px; border-top: 1px solid var(--border);
+  }
+  .chat-attachment-thumb {
+    position: relative; width: 48px; height: 48px; flex-shrink: 0;
+  }
+  .chat-attachment-thumb img {
+    width: 48px; height: 48px; object-fit: cover;
+    border-radius: 3px; border: 1px solid var(--border); display: block;
+  }
+  .chat-attachment-thumb .remove-att {
+    position: absolute; top: -4px; right: -4px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--bg2,#333); border: 1px solid var(--border);
+    color: var(--muted); font-size: 9px; line-height: 14px; text-align: center;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .chat-attachment-thumb .remove-att:hover { color: var(--red); }
+  .chat-send-btn {
+    background: transparent; border: none; border-left: 1px solid var(--border);
+    color: var(--dim); font-family: inherit; font-size: 10px; font-weight: 700;
+    padding: 0 10px; cursor: pointer; flex-shrink: 0;
+    transition: color .1s, background .1s; white-space: nowrap;
+  }
+  .chat-send-btn:hover:not(:disabled) { color: var(--blue); background: var(--blue-bg); }
+  .chat-send-btn:disabled { opacity: .4; cursor: default; }
+  /* activity indicator bar — hidden; abort btn lives in chat-main-row */
+  .activity-bar { display: none !important; }
+  .activity-pill { display: none; }
+  .abort-btn {
+    font-size: 10px; font-weight: 700;
+    padding: 0 10px; border: none; border-left: 1px solid var(--border);
+    background: transparent; color: var(--dim);
+    cursor: pointer; flex-shrink: 0; font-family: inherit;
+    transition: color .1s, background .1s;
+  }
+  .abort-btn:hover { color: var(--red); background: var(--red-bg); }
+  /* chat toolbar: model / agent / variant / thinking selectors */
+  .chat-toolbar {
+    display: flex; align-items: stretch;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .ct-select {
+    background: transparent; border: none; border-right: 1px solid var(--border);
+    color: var(--muted); font-family: inherit; font-size: 10px;
+    padding: 3px 6px; cursor: pointer; outline: none; max-width: 180px;
+  }
+  .ct-select:hover { color: var(--text); }
+  .ct-toggle {
+    display: flex; align-items: center; gap: 4px; padding: 0 8px;
+    font-size: 10px; color: var(--muted); cursor: pointer; user-select: none;
+    border-right: 1px solid var(--border);
+  }
+  .ct-toggle input[type=checkbox] { margin: 0; accent-color: var(--blue); cursor: pointer; }
+  .ct-toggle:hover { color: var(--text); }
+  /* per-message action buttons (copy / fork / undo) */
+  .sv-msg-user { position: relative; }
+  .sv-msg-actions {
+    position: absolute; bottom: -16px; right: 12px;
+    display: flex; gap: 1px;
+    opacity: 0; transition: opacity .12s;
+    z-index: 2;
+  }
+  .sv-msg-user:hover .sv-msg-actions { opacity: 1; }
+  .sv-msg-act {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+    padding: 2px 4px; cursor: pointer; line-height: 1;
+    border-radius: 3px; transition: color .1s, background .1s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sv-msg-act svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .sv-msg-act:hover { color: var(--text); background: var(--surface); }
+  .sv-msg-act.act-undo:hover { color: var(--red); }
+
+  /* log-header view toggle pill */
+  .log-view-toggle {
+    display: flex; gap: 0; border: 1px solid var(--border); overflow: hidden;
+  }
+  .log-view-toggle button {
+    background: none; border: none; color: var(--muted);
+    font-family: inherit; font-size: 9px; letter-spacing: .04em;
+    padding: 1px 6px; cursor: pointer; transition: color .1s, background .1s;
+  }
+  .log-view-toggle button.active { background: var(--border); color: var(--text); }
+  .log-view-toggle button:hover:not(.active) { color: var(--dim); }
 
   /* ── scrollbar ── */
   ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -458,14 +784,19 @@
     font-size: 12px;
     padding: 7px 10px;
     width: 100%;
+    outline: none;
+  }
+  select.model-select {
     appearance: none;
     -webkit-appearance: none;
     cursor: pointer;
-    outline: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234a4f5a'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 10px center;
     padding-right: 28px;
+  }
+  input.model-select {
+    cursor: text;
   }
   .model-select:focus { border-color: var(--blue); }
   .model-select option { background: #1a1c22; }
@@ -505,6 +836,46 @@
   #settings-backdrop.open { display: block; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); }
+
+  /* ── bottom bar ── */
+  #bottom-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 26px;
+    background: var(--surface2);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    z-index: 45;
+    font-size: 10px;
+  }
+  /* push grid-wrap above the bottom bar */
+  #grid-wrap { padding-bottom: 30px; }
+
+  /* ── dir badge on task cards ── */
+  .dir-badge {
+    font-size: 9px; padding: 1px 5px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 3px; color: var(--muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 140px; flex-shrink: 0;
+  }
+
+  /* ── session tabs ── */
+  .orch-session-tab {    display: flex; align-items: center; gap: 4px;
+    font-size: 10px; padding: 2px 8px;
+    border: 1px solid var(--border); border-radius: 3px;
+    background: transparent; color: var(--dim);
+    cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  }
+  .orch-session-tab.active { border-color: var(--blue); color: var(--blue); }
+  .orch-session-tab .tab-remove {
+    margin-left: 2px; font-size: 9px; color: var(--muted);
+    cursor: pointer; line-height: 1;
+  }
+  .orch-session-tab .tab-remove:hover { color: var(--red); }
 </style>
 </head>
 <body>
@@ -527,33 +898,152 @@
     </div>
     <div class="header-meta">
       <span id="hdr-started" style="color:var(--dim);font-size:11px"></span>
+      <div class="auto-toggle-wrap" title="Autonomous: orchestrator runs tasks automatically. Manual: you trigger each cycle.">
+        <span id="auto-label">autonomous</span>
+        <label class="auto-toggle">
+          <input type="checkbox" id="autonomous-checkbox" onchange="onAutonomousToggle(this.checked)">
+          <span class="auto-toggle-slider"></span>
+        </label>
+      </div>
       <button class="icon-btn" id="orch-toggle-btn" onclick="toggleOrchPanel()" title="Orchestrator log">orchestrator log</button>
       <button class="icon-btn danger" id="orch-restart-btn" onclick="showRestartModal('orchestrator')" title="Restart orchestrator">restart orchestrator</button>
+      <button class="icon-btn" id="settings-btn" onclick="toggleSettings()" title="Settings">⚙ settings</button>
       <div class="live-indicator">
         <div class="live-dot" id="live-dot"></div>
         <span class="live-label">live</span>
       </div>
-      <button class="icon-btn" id="settings-btn" onclick="toggleSettings()" title="Settings">⚙ settings</button>
     </div>
     <!-- progress bar removed -->
   </header>
 
   <div id="orch-panel">
     <div id="orch-resize-handle"></div>
-    <div class="orch-panel-hdr">
-      <span>orchestrator · logs/orchestrator.log</span>
-      <span id="orch-refresh-label" style="font-size:10px;color:var(--muted)"></span>
+     <div class="orch-panel-hdr">
+      <!-- spawn orchestrator button + session tabs row -->
+      <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow:hidden">
+        <button onclick="toggleSpawnForm()" title="Spawn new orchestrator project"
+          style="flex-shrink:0;font-size:11px;padding:2px 10px;border:1px dashed var(--blue);border-radius:3px;background:transparent;color:var(--blue);cursor:pointer">spawn orchestrator</button>
+        <button id="orch-create-session-btn" onclick="showOrchSessionForm()" title="Create orchestrator session"
+          style="display:none;flex-shrink:0;font-size:11px;padding:2px 8px;border:1px dashed var(--blue);border-radius:3px;background:transparent;color:var(--blue);cursor:pointer">+ session</button>
+        <button id="orch-delete-session-btn" onclick="deleteOrchSession()" title="Forget orchestrator session"
+          style="display:none;flex-shrink:0;font-size:11px;padding:2px 8px;border:1px dashed var(--red);border-radius:3px;background:transparent;color:var(--red);cursor:pointer">× session</button>
+        <div id="orch-session-tabs" style="display:flex;align-items:center;gap:2px;overflow-x:auto;flex:1;min-width:0"></div>
+        <span id="orch-debug-chip" style="display:none;font-size:10px;color:var(--muted);margin-left:6px;font-family:monospace"></span>
+      </div>
+      <!-- View mode toggle (log / diff) and refresh label -->
+      <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;margin-left:8px">
+        <div class="log-view-toggle">
+          <button id="orch-mode-ses" onclick="switchOrchView('session')" class="active" title="Orch session">orch</button>
+          <button id="orch-mode-log" onclick="switchOrchView('log')" title="orchestrator log">log</button>
+          <button id="orch-mode-dif" onclick="switchOrchView('diff')" title="combined worktree diff">diff</button>
+        </div>
+        <span id="orch-refresh-label" style="font-size:10px;color:var(--muted)"></span>
+      </div>
+    </div>
+    <!-- Spawn form (hidden by default) -->
+    <div id="orch-spawn-form" style="display:none;padding:6px 12px;background:var(--surface2);border-bottom:1px solid var(--border);gap:6px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--dim);flex-shrink:0">directory:</span>
+      <div style="position:relative;flex:1;min-width:200px">
+        <input id="orch-spawn-dir" type="text" placeholder="/home/ubuntu/server/myproject"
+          style="width:100%;font-size:11px;padding:3px 6px;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--fg);box-sizing:border-box"
+          oninput="onSpawnDirInput(this.value)" onkeydown="onSpawnDirKey(event)" autocomplete="off" />
+        <div id="orch-spawn-autocomplete"
+          style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface2);border:1px solid var(--border);border-top:none;z-index:200;max-height:180px;overflow-y:auto;border-radius:0 0 3px 3px"></div>
+      </div>
+      <input id="orch-spawn-label" type="text" placeholder="label (optional)"
+        style="width:110px;font-size:11px;padding:3px 6px;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--fg)" />
+      <button onclick="spawnSession()" style="font-size:11px;padding:3px 10px;border:1px solid var(--blue);border-radius:3px;background:var(--blue);color:#fff;cursor:pointer">spawn</button>
+      <button onclick="toggleSpawnForm()" style="font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:3px;background:transparent;color:var(--dim);cursor:pointer">cancel</button>
+    </div>
+    <div id="orch-session-form" style="display:none;padding:6px 12px;background:var(--surface2);border-bottom:1px solid var(--border);gap:6px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--dim);flex-shrink:0">directory:</span>
+      <div style="position:relative;flex:1;min-width:200px">
+        <input id="orch-session-dir" type="text" placeholder="/home/ubuntu/server/myproject"
+          style="width:100%;font-size:11px;padding:3px 6px;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--fg);box-sizing:border-box"
+          oninput="onOrchSessionDirInput(this.value)" onkeydown="onOrchSessionDirKey(event)" autocomplete="off" />
+        <div id="orch-session-autocomplete"
+          style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface2);border:1px solid var(--border);border-top:none;z-index:200;max-height:180px;overflow-y:auto;border-radius:0 0 3px 3px"></div>
+      </div>
+      <button onclick="createOrchSession()" style="font-size:11px;padding:3px 10px;border:1px solid var(--blue);border-radius:3px;background:var(--blue);color:#fff;cursor:pointer">create</button>
+      <button onclick="hideOrchSessionForm()" style="font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:3px;background:transparent;color:var(--dim);cursor:pointer">cancel</button>
     </div>
     <div id="orch-log-content"><span style="color:var(--muted)">loading…</span></div>
+     <div class="chat-input-area chat-input-orch" id="orch-chat-input">
+       <div class="activity-bar" id="orch-activity-bar">
+         <span class="activity-pill" id="orch-activity-text"></span>
+       </div>
+       <div id="orch-chat-attachments" class="chat-attachments" style="display:none"></div>
+       <div class="chat-main-row">
+         <textarea class="chat-textarea" rows="3" placeholder="send message to orchestrator session…"
+           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitOrchMessage()}"></textarea>
+         <button class="abort-btn" id="orch-abort-btn" style="display:none" onclick="abortSession(orchSessionId,'orch')">abort</button>
+         <button class="chat-send-btn" onclick="submitOrchMessage()">send</button>
+       </div>
+       <div id="orch-toolbar-mount"></div>
+     </div>
   </div>
 
   <div id="grid-wrap">
-    <div class="grid" id="grid">
-      <div class="empty-state" id="empty-state">
-        <div>No <code>state.json</code> found.</div>
-        <div style="margin-top:8px;color:var(--dim);font-size:11px">Start the swarm: <code>sudo systemctl start openswarm</code></div>
+    <!-- Worker card spawn bar -->
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 12px;border-bottom:1px solid var(--border);background:var(--surface2)">
+      <button onclick="toggleWorkerSpawnForm()" id="worker-spawn-btn"
+        style="font-size:11px;padding:2px 10px;border:1px dashed var(--blue);border-radius:3px;background:transparent;color:var(--blue);cursor:pointer">spawn agent</button>
+      <div style="position:relative">
+        <button onclick="toggleHistoryDropdown()"
+          style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:3px;background:transparent;color:var(--dim);cursor:pointer">history ▾</button>
+        <div id="history-dropdown"
+          style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--surface2);border:1px solid var(--border);border-radius:4px;min-width:280px;max-height:260px;overflow-y:auto;z-index:300"></div>
       </div>
     </div>
+    <!-- Worker card spawn form (hidden by default) -->
+     <div id="worker-spawn-form" style="display:none;padding:6px 12px;background:var(--surface2);border-bottom:1px solid var(--border);gap:6px;align-items:center;flex-wrap:wrap">
+       <span style="font-size:11px;color:var(--dim);flex-shrink:0">label:</span>
+       <input id="worker-spawn-label" type="text" placeholder="e.g. T-220 funding rates"
+         style="width:180px;font-size:11px;padding:3px 6px;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--fg)" />
+       <span style="font-size:11px;color:var(--dim);flex-shrink:0">directory:</span>
+       <div style="position:relative;flex:1;min-width:200px">
+        <input id="worker-spawn-dir" type="text" placeholder="/home/ubuntu/server/yact/..."
+          oninput="onWorkerDirInput(this.value);fetchWorktreesForDir(this.value)"
+          onkeydown="onWorkerDirKey(event)" autocomplete="off"
+          style="width:100%;font-size:11px;padding:3px 6px;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--fg);box-sizing:border-box" />
+        <div id="worker-spawn-autocomplete"
+          style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface2);border:1px solid var(--border);border-top:none;z-index:200;max-height:180px;overflow-y:auto;border-radius:0 0 3px 3px"></div>
+       </div>
+       <span style="font-size:11px;color:var(--dim);flex-shrink:0">model:</span>
+        <input id="worker-spawn-model" type="text" placeholder="default"
+          style="width:140px;font-size:11px;padding:3px 6px;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--fg)" />
+        <span style="font-size:11px;color:var(--dim);flex-shrink:0">worktree:</span>
+        <div style="display:flex;flex-direction:column;gap:2px;min-width:180px">
+          <input id="worker-spawn-worktree" type="text" placeholder="name (optional)"
+            style="width:100%;font-size:11px;padding:3px 6px;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--fg)" />
+          <select id="worker-spawn-worktree-select"
+            style="display:none;width:100%;font-size:11px;padding:2px 4px;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--fg)"
+            onchange="document.getElementById('worker-spawn-worktree').value=this.options[this.selectedIndex].value"></select>
+        </div>
+        <span style="font-size:11px;color:var(--dim);flex-shrink:0">prompt:</span>
+        <input id="worker-spawn-prompt" type="text" placeholder="optional initial message"
+          style="flex:2;min-width:220px;font-size:11px;padding:3px 6px;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--fg)" />
+       <button onclick="spawnWorkerCard()"
+         style="font-size:11px;padding:3px 10px;border:1px solid var(--blue);border-radius:3px;background:var(--blue);color:#fff;cursor:pointer">spawn</button>
+       <button onclick="toggleWorkerSpawnForm()"
+         style="font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:3px;background:transparent;color:var(--dim);cursor:pointer">cancel</button>
+     </div>
+    <div class="grid" id="grid">
+      <div class="empty-state" id="empty-state">
+        <div>No active cards.</div>
+        <div style="margin-top:8px;color:var(--dim);font-size:11px">Click <strong>spawn agent</strong> to spawn a worker session.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom bar: directory filter -->
+  <div id="bottom-bar">
+    <span style="font-size:10px;color:var(--dim);flex-shrink:0">filter:</span>
+    <div id="dir-filter-wrap" style="position:relative;display:inline-block">
+      <button id="dir-filter-btn" onclick="toggleDirFilter()" style="font-size:10px;padding:2px 8px;border:1px solid var(--border);border-radius:3px;background:var(--surface);color:var(--fg);cursor:pointer">all directories ▾</button>
+      <div id="dir-filter-dropdown" style="display:none;position:absolute;bottom:calc(100% + 4px);left:0;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:6px 0;min-width:220px;z-index:300;max-height:260px;overflow-y:auto"></div>
+    </div>
+    <span id="dir-filter-count" style="font-size:10px;color:var(--muted)"></span>
   </div>
 
 </div><!-- /shell -->
@@ -568,19 +1058,47 @@
   <div class="settings-body">
 
     <div class="settings-field">
-      <label class="settings-label" for="model-select">default worker model</label>
+      <label class="settings-label" for="model-select">worker model <span style="color:var(--muted);font-weight:400">(opencode)</span></label>
       <select class="model-select" id="model-select">
         <option value="">loading models…</option>
       </select>
+      <!-- shown only when model list fails to load -->
+      <input type="text" class="model-select" id="model-input-manual" list="models-datalist"
+             placeholder="type a model ID, e.g. github-copilot/claude-sonnet-4-5"
+             autocomplete="off" style="display:none;margin-top:6px">
+      <datalist id="models-datalist"></datalist>
       <span class="settings-hint">
         Applied to every new worker session. Per-task <code style="color:var(--blue)">"model"</code>
-        in <code style="color:var(--blue)">ROADMAP_DEPS.json</code> overrides this.
-        Takes effect on the next orchestrator run.
+        in <code style="color:var(--blue)">tasks.json</code> overrides this.
+        <span id="models-load-status"></span>
       </span>
     </div>
 
+    <div class="settings-field">
+      <label class="settings-label" for="settings-agent-select">default agent</label>
+      <select class="model-select" id="settings-agent-select">
+        <option value="">— (opencode default)</option>
+        <option value="build">build</option>
+        <option value="plan">plan</option>
+        <option value="explore">explore</option>
+        <option value="general">general</option>
+      </select>
+      <span class="settings-hint">Agent used for every new worker session.</span>
+    </div>
+
+    <div class="settings-field">
+      <label class="settings-label" for="settings-variant-select">default reasoning effort</label>
+      <select class="model-select" id="settings-variant-select">
+        <option value="">— (model default)</option>
+        <option value="minimal">minimal</option>
+        <option value="high">high</option>
+        <option value="max">max</option>
+      </select>
+      <span class="settings-hint">Reasoning effort (variant). Not supported by all models.</span>
+    </div>
+
     <div style="display:flex;align-items:center;gap:10px">
-      <button class="settings-save-btn" id="settings-save-btn" onclick="saveSettings()">save</button>
+      <button class="settings-save-btn" id="settings-save-btn" onclick="saveSettings()">save opencode</button>
       <span class="settings-status" id="settings-status"></span>
     </div>
 
@@ -606,10 +1124,264 @@ const REFRESH_MS      = 10_000;
 const LOG_REFRESH_MS  = 8_000;
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let swarmState   = null;
+let cardsState   = null; // {active: [...], history: [...]}
+const taskSessionMap = {};  // cardId → sessionId (populated by showChatInput)
 let logCache     = {};
 let countdown    = REFRESH_MS / 1000;
 let orchPanelOpen = false;
+
+// ── Session view state ────────────────────────────────────────────────────────
+// 'session' = opencode session view (default), 'log' = raw worker log
+const logViewMode    = {};   // taskId → 'session' | 'log'
+let   ocSessionList  = null; // cached list from /api/oc/sessions
+
+// ── Session SSE streams ───────────────────────────────────────────────────────
+// Map of taskId → EventSource (or 'orch' → EventSource for orch panel)
+const sessionStreams = {};
+
+function startSessionStream(key, sessionId) {
+  stopSessionStream(key); // close any existing stream for this key
+  const es = new EventSource(`/api/stream/session/${encodeURIComponent(sessionId)}`);
+  sessionStreams[key] = es;
+  startOcEventStream(key, sessionId);
+  es.onmessage = async (e) => {
+    let ev;
+    try { ev = JSON.parse(e.data); } catch { return; }
+    if (ev.type === 'timeout') { stopSessionStream(key); return; }
+    if (ev.type !== 'updated') return;
+    // Re-fetch and re-render the relevant pane
+    if (key === 'orch') {
+      if (orchViewMode !== 'session') return;
+      const msgs = await fetchSessionMessages(sessionId, 150);
+      const el = document.getElementById('orch-log-content');
+      if (el) {
+        const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+        applySessionContent(el, msgs, orchScrollPinned, dist, sessionId);
+      }
+    } else {
+      const taskId = key;
+      if ((logViewMode[taskId] || 'session') !== 'session') return;
+      const el = document.getElementById(`log-content-${taskId}`);
+      if (!el) return;
+      const pinned = logScrollPinned.has(taskId);
+      const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+      const msgs = await fetchSessionMessages(sessionId);
+      applySessionContent(el, msgs, pinned, dist, sessionId);
+    }
+  };
+  es.onerror = () => {
+    // EventSource auto-reconnects; only clean up if closed externally
+    if (es.readyState === EventSource.CLOSED) delete sessionStreams[key];
+  };
+}
+
+function stopSessionStream(key) {
+  const es = sessionStreams[key];
+  if (es) { es.close(); delete sessionStreams[key]; }
+  stopOcEventStream(key);
+}
+
+// ── OpenCode live event streams (activity indicators + abort) ─────────────────
+const ocEventStreams = {};
+
+function startOcEventStream(key, sessionId) {
+  stopOcEventStream(key);
+  const es = new EventSource('/api/stream/global/event');
+  // debounce timer for re-render triggered by real-time part events
+  let renderTimer = null;
+  ocEventStreams[key] = { es, sessionId, cancelDebounce: () => { if (renderTimer) { clearTimeout(renderTimer); renderTimer = null; } } };
+
+  async function scheduleRender(immediate) {
+    if (renderTimer) clearTimeout(renderTimer);
+    renderTimer = setTimeout(async () => {
+      renderTimer = null;
+      const limit = key === 'orch' ? 150 : undefined;
+      const msgs = await fetchSessionMessages(sessionId, limit);
+      if (!msgs) return;
+      if (key === 'orch') {
+        if (orchViewMode !== 'session') return;
+        const el = document.getElementById('orch-log-content');
+        if (el) {
+          const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+          applySessionContent(el, msgs, orchScrollPinned, dist, sessionId);
+        }
+      } else {
+        if ((logViewMode[key] || 'session') !== 'session') return;
+        const el = document.getElementById(`log-content-${key}`);
+        if (!el) return;
+        const pinned = logScrollPinned.has(key);
+        const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+        applySessionContent(el, msgs, pinned, dist, sessionId);
+      }
+    }, immediate ? 0 : 80);
+  }
+
+  es.onmessage = (e) => {
+    let ev;
+    try { ev = JSON.parse(e.data); } catch { return; }
+    const payload = ev.payload || {};
+    const props = payload.properties || {};
+    // Filter by sessionID client-side
+    const evSession = props.sessionID || props.info?.id || payload.sessionID;
+    if (evSession && evSession !== sessionId) return;
+    const evType = payload.type || '';
+    if (evType === 'message.part.updated') {
+      const part = props.part || {};
+      if (part.type === 'tool' && part.state?.status === 'running') {
+        const desc = part.state?.input?.description || part.tool || 'working…';
+        setActivityIndicator(key, `${part.tool}: ${desc}`);
+      }
+      // Drive re-render from real-time events instead of waiting for SQLite poll
+      scheduleRender(false);
+    } else if (evType === 'session.idle') {
+      clearActivityIndicator(key);
+      // Final authoritative fetch once the session goes idle
+      scheduleRender(true);
+    }
+  };
+  es.onerror = () => {
+    if (es.readyState === EventSource.CLOSED) {
+      const entry = ocEventStreams[key];
+      if (entry?.cancelDebounce) entry.cancelDebounce();
+      delete ocEventStreams[key];
+      clearActivityIndicator(key);
+    }
+  };
+}
+
+function stopOcEventStream(key) {
+  const entry = ocEventStreams[key];
+  if (entry) { if (entry.cancelDebounce) entry.cancelDebounce(); entry.es.close(); delete ocEventStreams[key]; }
+  clearActivityIndicator(key);
+}
+
+function _activityBarEl(key) {
+  return document.getElementById(key === 'orch' ? 'orch-activity-bar' : `card-${key}-activity-bar`);
+}
+
+function _activityTextEl(key) {
+  return document.getElementById(key === 'orch' ? 'orch-activity-text' : `card-${key}-activity-text`);
+}
+
+function setActivityIndicator(key, text) {
+  const bar = _activityBarEl(key);
+  const pill = _activityTextEl(key);
+  if (bar) bar.style.display = 'flex';
+  if (pill) pill.textContent = text;
+  // show abort btn in chat-main-row
+  const abortBtn = document.getElementById(key === 'orch' ? 'orch-abort-btn' : `card-${key}-abort-btn`);
+  if (abortBtn) abortBtn.style.display = '';
+}
+
+function clearActivityIndicator(key) {
+  const bar = _activityBarEl(key);
+  if (bar) bar.style.display = 'none';
+  const pill = _activityTextEl(key);
+  if (pill) pill.textContent = '';
+  // hide abort btn
+  const abortBtn = document.getElementById(key === 'orch' ? 'orch-abort-btn' : `card-${key}-abort-btn`);
+  if (abortBtn) abortBtn.style.display = 'none';
+}
+
+async function abortSession(sessionId, key) {
+  if (!sessionId) return;
+  try {
+    await fetch(`/api/oc/session/${encodeURIComponent(sessionId)}/abort`, { method: 'POST' });
+    clearActivityIndicator(key);
+  } catch(e) { console.warn('abort failed', e); }
+}
+
+// ── Log SSE streams ───────────────────────────────────────────────────────────
+const logStreams = {};
+
+function startLogStream(key, logPath) {
+  stopLogStream(key);
+  const es = new EventSource(`/api/stream/log/${encodeURIComponent(logPath)}`);
+  logStreams[key] = es;
+  es.onmessage = async (e) => {
+    let ev;
+    try { ev = JSON.parse(e.data); } catch { return; }
+    if (ev.type === 'timeout') { stopLogStream(key); return; }
+    if (ev.type !== 'updated') return;
+    if (key === 'orch') {
+      if (orchViewMode !== 'log') return;
+      const text = await fetchOrchLog();
+      const el = document.getElementById('orch-log-content');
+      if (text && el) {
+        const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+        el.innerHTML = renderLogLines(text);
+        if (orchScrollPinned) el.scrollTop = el.scrollHeight;
+        else el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight - dist);
+        document.getElementById('orch-refresh-label').textContent =
+          new Date().toLocaleTimeString();
+      }
+    } else {
+      const taskId = key;
+      if ((logViewMode[taskId] || 'session') !== 'log') return;
+      const el = document.getElementById(`log-content-${taskId}`);
+      if (!el) return;
+      const text = await fetchLog(taskId);
+      if (!text) return;
+      logCache[taskId] = text;
+      const pinned = logScrollPinned.has(taskId);
+      const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+      el.innerHTML = renderLogLines(text);
+      if (pinned) el.scrollTop = el.scrollHeight;
+      else el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight - dist);
+    }
+  };
+  es.onerror = () => {
+    if (es.readyState === EventSource.CLOSED) delete logStreams[key];
+  };
+}
+
+function stopLogStream(key) {
+  const es = logStreams[key];
+  if (es) { es.close(); delete logStreams[key]; }
+}
+
+// ── Diff SSE streams ──────────────────────────────────────────────────────────
+const diffStreams = {};
+
+function startDiffStream(key, paths) {
+  stopDiffStream(key);
+  const es = new EventSource(`/api/stream/diff?paths=${encodeURIComponent(paths.join(','))}`);
+  diffStreams[key] = es;
+  es.onmessage = async (e) => {
+    let ev;
+    try { ev = JSON.parse(e.data); } catch { return; }
+    if (ev.type === 'timeout') { stopDiffStream(key); return; }
+    if (ev.type !== 'updated') return;
+    if (key === 'orch') {
+      if (orchViewMode !== 'diff') return;
+      const el = document.getElementById('orch-log-content');
+      if (!el) return;
+      const result = await fetchWorktreeDiff(paths);
+      if (!result) return;
+      const combined = Object.entries(result).map(([p, v]) =>
+        v.error ? `# Error (${p.split('/').pop()}): ${v.error}` : (v.diff || '')).join('\n');
+      el.innerHTML = renderUnifiedDiff(combined);
+    } else {
+      const taskId = key;
+      if ((logViewMode[taskId] || 'session') !== 'diff') return;
+      const el = document.getElementById(`log-content-${taskId}`);
+      if (!el) return;
+      const result = await fetchWorktreeDiff(paths);
+      if (!result) return;
+      const combined = Object.entries(result).map(([, v]) =>
+        v.error ? `# Error: ${v.error}` : (v.diff || '')).join('\n');
+      el.innerHTML = renderUnifiedDiff(combined);
+    }
+  };
+  es.onerror = () => {
+    if (es.readyState === EventSource.CLOSED) delete diffStreams[key];
+  };
+}
+
+function stopDiffStream(key) {
+  const es = diffStreams[key];
+  if (es) { es.close(); delete diffStreams[key]; }
+}
 
 // ── ANSI → HTML ───────────────────────────────────────────────────────────────
 // Proper multi-code SGR parser. Handles compound codes like \x1b[1;32m.
@@ -737,6 +1509,406 @@ async function fetchOrchLog() {
   } catch { return null; }
 }
 
+// ── Session view helpers ──────────────────────────────────────────────────────
+async function fetchOcSessions(dirs) {
+  try {
+    let param = '';
+    if (dirs && dirs.length) {
+      // opencode accepts ?directory= for a single dir; multiple dirs not supported natively
+      param = '?directory=' + encodeURIComponent(dirs[0]);
+      if (dirs.length > 1) {
+        // fallback: fetch all and filter client-side
+        const all = await fetch('/api/oc/session').then(r => r.ok ? r.json() : []);
+        if (!Array.isArray(all)) return null;
+        const dirSet = new Set(dirs);
+        return all.filter(s => dirSet.has(s.directory));
+      }
+    }
+    const r = await fetch('/api/oc/session' + param);
+    if (!r.ok) return null;
+    const list = await r.json();
+    // Merge into global cache (keyed by directory for fast lookup)
+    for (const s of list) {
+      if (!ocSessionList) ocSessionList = {};
+      if (!ocSessionList[s.directory] || ocSessionList[s.directory].time.updated < s.time.updated) {
+        ocSessionList[s.directory] = s;
+      }
+    }
+    return list;
+  } catch { return null; }
+}
+
+
+async function fetchSessionMessages(sessionId, limit) {
+  try {
+    const qs = limit ? `?limit=${limit}` : '';
+    const r = await fetch(`/api/oc/session/${encodeURIComponent(sessionId)}/message${qs}`);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+// ── Details state preservation ────────────────────────────────────────────────
+// Collect which data-key <details> are currently open in a container element.
+function captureDetailsState(el) {
+  const open = new Set();
+  el.querySelectorAll('details[data-key]').forEach(d => {
+    if (d.open) open.add(d.getAttribute('data-key'));
+  });
+  return open;
+}
+
+// Re-open any <details> whose data-key was in the captured set.
+function restoreDetailsState(el, openKeys) {
+  if (!openKeys.size) return;
+  el.querySelectorAll('details[data-key]').forEach(d => {
+    if (openKeys.has(d.getAttribute('data-key'))) d.open = true;
+  });
+}
+
+// Full session content update: preserves <details> open state and scroll position.
+function applySessionContent(el, msgs, pinned, dist, sessionId) {
+  const openKeys = captureDetailsState(el);
+  el.innerHTML = renderSessionMessages(msgs, sessionId);
+  restoreDetailsState(el, openKeys);
+  if (pinned) el.scrollTop = el.scrollHeight;
+  else el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight - dist);
+}
+
+function renderSessionMessages(messages, sessionId) {
+  if (!messages || !messages.length) {
+    return '<div class="sv-no-session">no messages yet</div>';
+  }
+  let html = '<div class="sv-feed">';
+  let msgIdx = 0;
+  for (const msg of messages) {
+    const role = msg.info?.role || 'unknown';
+    const parts = msg.parts || [];
+    const isUser = role === 'user';
+
+    if (isUser) {
+      // User message: extract text content
+      const infoContent = msg.info?.content;
+      let txt = '';
+      if (Array.isArray(infoContent)) {
+        txt = infoContent.find(c => c.type === 'text')?.text || '';
+      } else if (typeof infoContent === 'string') {
+        txt = infoContent;
+      }
+      // Also check parts for text
+      if (!txt) {
+        for (const p of parts) {
+          if (p.type === 'text' && p.text) { txt = p.text; break; }
+        }
+      }
+      if (txt) {
+        const sid = escHtml(sessionId || '');
+        const mid = escHtml(msg.id || '');
+        const txtJ = JSON.stringify(txt);
+        const sidJ = JSON.stringify(sessionId || '');
+        const midJ = JSON.stringify(msg.id || '');
+        html += `<div class="sv-msg-user" style="padding-bottom:18px">
+          <div class="sv-user-bubble">${escHtml(txt)}</div>
+          <div class="sv-msg-actions">
+            <button class="sv-msg-act" onclick="copyMsg(${txtJ},this)" title="copy message"><svg viewBox="0 0 16 16"><rect x="5" y="5" width="9" height="10" rx="1.5"/><path d="M10 5V3.5A1.5 1.5 0 0 0 8.5 2h-5A1.5 1.5 0 0 0 2 3.5v7A1.5 1.5 0 0 0 3.5 12H5"/></svg></button>
+            <button class="sv-msg-act" onclick="forkMsg(${sidJ},${txtJ},this)" title="fork session and re-send"><svg viewBox="0 0 16 16"><circle cx="4" cy="3" r="1.5"/><circle cx="4" cy="13" r="1.5"/><circle cx="12" cy="3" r="1.5"/><path d="M4 4.5v7M4 4.5C4 7 12 7 12 4.5"/></svg></button>
+            <button class="sv-msg-act act-undo" onclick="undoMsg(${sidJ},${midJ})" title="delete this message and everything after it"><svg viewBox="0 0 16 16"><path d="M3 7V4m0 0h3M3 4l2.5 2.5A5 5 0 1 1 3 11"/></svg></button>
+          </div>
+        </div>`;
+      }
+      msgIdx++;
+      continue;
+    }
+
+    // Assistant message — iterate parts
+    let partIdx = 0;
+    let asst = '';
+    for (const p of parts) {
+      const t = p.type;
+      if (t === 'step-start' || t === 'step-finish' || t === 'patch' ||
+          t === 'agent' || t === 'compaction') { partIdx++; continue; }
+      if (t === 'text' && p.text) {
+        asst += `<div class="sv-asst-text">${renderMarkdown(p.text)}</div>`;
+      } else if (t === 'reasoning' && p.text) {
+        asst += `<details class="rr" data-key="m${msgIdx}p${partIdx}">
+          <summary>⋯ thinking (${p.text.length} chars)</summary>
+          <div class="rr-body">${escHtml(p.text.slice(0, 1500))}${p.text.length > 1500 ? '…' : ''}</div>
+        </details>`;
+      } else if (t === 'tool') {
+        asst += renderToolPart(p, `m${msgIdx}p${partIdx}`);
+      } else if (t === 'retry') {
+        asst += `<div class="sv-retry">↺ retrying…</div>`;
+      }
+      partIdx++;
+    }
+    if (asst) html += `<div class="sv-msg-assistant">${asst}</div>`;
+    msgIdx++;
+  }
+  html += '</div>';
+  return html || '<div class="sv-no-session">no content yet</div>';
+}
+
+// ── Tool icon map (unicode, matches OC web semantics) ────────────────────────
+function toolIcon(name) {
+  const n = (name || '').toLowerCase().replace(/:\d+$/, '').split('.').pop() || '';
+  if (n === 'edit' || n === 'multiedit' || n === 'apply_patch' || n === 'str_replace' || n === 'str_replace_based_edit_tool') return '✎';
+  if (n === 'write' || n === 'create' || n === 'file_write') return '✦';
+  if (n === 'read' || n === 'view' || n === 'file_read' || n === 'cat') return '≡';
+  if (n === 'bash' || n === 'shell' || n === 'cmd' || n === 'terminal') return '$';
+  if (n === 'glob') return '⊞';
+  if (n === 'grep' || n === 'search' || n === 'find' || n === 'ripgrep') return '⌕';
+  if (n === 'fetch' || n === 'curl' || n === 'wget' || n === 'webfetch') return '↗';
+  if (n === 'web-search' || n === 'websearch' || n === 'search_web') return '↗';
+  if (n === 'todowrite' || n === 'todoread') return '☑';
+  if (n === 'task') return '⇢';
+  if (n === 'question') return '?';
+  if (n === 'skill') return '◈';
+  if (n.startsWith('git')) return '⎇';
+  return '◆';
+}
+
+// Render a path as dim-dir + sep + bright-filename
+function renderToolPath(p) {
+  if (!p) return '';
+  p = p.replace(/\\/g, '/');
+  const last = p.lastIndexOf('/');
+  if (last === -1) return `<span class="tr-file">${escHtml(p)}</span>`;
+  const dir = p.slice(0, last);
+  const file = p.slice(last + 1);
+  return `<span class="tr-dir">${escHtml(dir)}</span><span class="tr-sep">/</span><span class="tr-file">${escHtml(file)}</span>`;
+}
+
+// Extract best description/path for a tool call
+function toolDesc(name, input, output) {
+  const n = (name || '').toLowerCase().replace(/:\d+$/, '').split('.').pop() || '';
+  // file-related: show the path
+  const path = input?.filePath || input?.file_path || input?.path;
+  if (path && typeof path === 'string' &&
+      ['edit','multiedit','apply_patch','read','view','file_read','write','create','file_write','glob','str_replace','str_replace_based_edit_tool'].includes(n)) {
+    return { kind: 'path', value: path };
+  }
+  if (n === 'bash' && input?.command && typeof input.command === 'string') {
+    return { kind: 'text', value: input.command.split('\n')[0].slice(0, 120) };
+  }
+  if (n === 'grep' || n === 'search' || n === 'ripgrep') {
+    const pat = input?.pattern || input?.query || input?.regex || '';
+    const inc = input?.include || input?.glob || '';
+    return { kind: 'text', value: [pat, inc].filter(Boolean).join(' ').slice(0, 80) };
+  }
+  if (n === 'glob') {
+    return { kind: 'text', value: (input?.pattern || '').slice(0, 80) };
+  }
+  if (n === 'fetch' || n === 'webfetch') {
+    return { kind: 'text', value: (input?.url || '').slice(0, 100) };
+  }
+  if (n === 'task' && input?.description) {
+    return { kind: 'text', value: String(input.description).slice(0, 80) };
+  }
+  const desc = input?.description || input?.query || '';
+  if (desc) return { kind: 'text', value: String(desc).slice(0, 80) };
+  return null;
+}
+
+// Count diff stat lines from a unified diff string
+function diffStats(diffText) {
+  if (!diffText) return null;
+  let add = 0, rem = 0;
+  for (const line of diffText.split('\n')) {
+    if (line.startsWith('+') && !line.startsWith('+++')) add++;
+    else if (line.startsWith('-') && !line.startsWith('---')) rem++;
+  }
+  return (add || rem) ? { add, rem } : null;
+}
+
+function renderToolPart(p, key) {
+  const name = (p.tool || '?').toLowerCase().replace(/:\d+$/, '').split('.').pop() || p.tool || '?';
+  const input = p.state?.input || {};
+  const output = typeof p.state?.output === 'string' ? p.state.output : '';
+  const status = p.state?.status;
+  const icon = toolIcon(name);
+  const desc = toolDesc(name, input, output);
+
+  const statusHtml = status === 'completed'
+    ? '<span class="tr-status ts-ok">✓</span>'
+    : status === 'error'
+      ? '<span class="tr-status ts-err">✗</span>'
+      : status === 'running'
+        ? '<span class="tr-status ts-run">…</span>'
+        : '';
+
+  // Build description span
+  let descHtml = '';
+  if (desc) {
+    if (desc.kind === 'path') {
+      descHtml = `<span class="tr-desc">${renderToolPath(desc.value)}</span>`;
+    } else {
+      descHtml = `<span class="tr-desc">${escHtml(desc.value)}</span>`;
+    }
+  }
+
+  // Build diff stat badges (for edit/write/apply_patch)
+  let statsHtml = '';
+  const diffText = p.state?.metadata?.diff || (typeof input.patch === 'string' ? input.patch : '');
+  if (diffText) {
+    const st = diffStats(diffText);
+    if (st) {
+      statsHtml = `<span class="tr-stat-add">+${st.add}</span><span style="color:#353a47;font-size:9px"> / </span><span class="tr-stat-rem">-${st.rem}</span>`;
+    }
+  }
+
+  // Build body content
+  let bodyHtml = '';
+  const hasEditDiff = (name === 'edit' || name === 'multiedit' || name === 'apply_patch' ||
+                       name === 'str_replace' || name === 'str_replace_based_edit_tool') &&
+                      input.oldString !== undefined;
+  const hasWriteContent = name === 'write' && input.content;
+
+  if (hasEditDiff) {
+    bodyHtml = renderInlineDiff(input.oldString || '', input.newString || '');
+  } else if (hasWriteContent) {
+    bodyHtml = renderInlineDiff('', input.content);
+  } else if (output && output.length > 2) {
+    const t = output.slice(0, 1000);
+    bodyHtml = `<pre class="tr-output">${escHtml(t)}${output.length > 1000 ? '\n…' : ''}</pre>`;
+  } else if (input && Object.keys(input).length > 0) {
+    const j = JSON.stringify(input, null, 2);
+    if (j.length > 2) {
+      bodyHtml = `<pre class="tr-output">${escHtml(j.slice(0, 600))}${j.length > 600 ? '\n…' : ''}</pre>`;
+    }
+  }
+
+  if (!bodyHtml) {
+    return `<div class="tr-flat">
+      <i class="tr-icon">${icon}</i>
+      <span class="tr-name">${escHtml(name)}</span>
+      ${descHtml}${statsHtml}${statusHtml}
+    </div>`;
+  }
+  return `<details class="tr" data-key="${escHtml(key || '')}">
+    <summary>
+      <i class="tr-icon">${icon}</i>
+      <span class="tr-name">${escHtml(name)}</span>
+      ${descHtml}${statsHtml}${statusHtml}
+    </summary>
+    <div class="tr-body">${bodyHtml}</div>
+  </details>`;
+}
+
+// ── Markdown renderer ─────────────────────────────────────────────────────────
+function renderMarkdown(raw) {
+  if (!raw) return '';
+  // Extract code blocks first to avoid processing their contents
+  const blocks = [];
+  const text = raw.replace(/```[\w]*\n?([\s\S]*?)```/g, (_, code) => {
+    blocks.push(code.replace(/\n$/, ''));
+    return `\x00BLK${blocks.length - 1}\x00`;
+  });
+  return renderMdLines(text, blocks);
+}
+function renderMdLines(text, blocks) {
+  const lines = text.split('\n');
+  let html = '';
+  let inList = false;
+  for (const raw of lines) {
+    // Restore code blocks that might be on their own line
+    if (/^\x00BLK\d+\x00$/.test(raw.trim())) {
+      const idx = parseInt(raw.trim().slice(4, -1));
+      if (inList) { html += '</div>'; inList = false; }
+      html += `<pre class="md-pre"><code>${escHtml(blocks[idx])}</code></pre>`;
+      continue;
+    }
+    const hm = raw.match(/^(#{1,3})\s+(.*)/);
+    if (hm) {
+      if (inList) { html += '</div>'; inList = false; }
+      html += `<div class="md-h${hm[1].length}">${applyInline(escHtml(hm[2]))}</div>`;
+      continue;
+    }
+    const lm = raw.match(/^[-*+]\s+(.*)/);
+    if (lm) {
+      if (!inList) { html += '<div class="md-ul">'; inList = true; }
+      html += `<div class="md-li">${applyInline(escHtml(lm[1]))}</div>`;
+      continue;
+    }
+    if (inList) { html += '</div>'; inList = false; }
+    if (!raw.trim()) { html += '<div style="height:4px"></div>'; continue; }
+    // Inline code-block placeholders inside a normal line
+    const lineEsc = escHtml(raw).replace(/\x00BLK(\d+)\x00/g, (_, n) =>
+      `<code class="md-code">${escHtml(blocks[n]).slice(0, 80)}</code>`);
+    html += `<div class="md-p">${applyInline(lineEsc)}</div>`;
+  }
+  if (inList) html += '</div>';
+  return html;
+}
+function applyInline(s) {
+  return s
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong class="md-b">$1</strong>')
+    .replace(/\*([^*\n]+)\*/g, '<em class="md-i">$1</em>')
+    .replace(/`([^`\n]+)`/g, '<code class="md-code">$1</code>');
+}
+
+// ── Diff helpers ──────────────────────────────────────────────────────────────
+function lcsLen(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({length: m + 1}, () => new Int32Array(n + 1));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] + 1 : Math.max(dp[i-1][j], dp[i][j-1]);
+  return dp;
+}
+function diffLines(a, b) {
+  if (a.length + b.length > 500) {
+    return [...a.map(l => ({t:'rem', l})), ...b.map(l => ({t:'add', l}))];
+  }
+  const dp = lcsLen(a, b);
+  const res = [];
+  let i = a.length, j = b.length;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && a[i-1] === b[j-1]) { res.unshift({t:'ctx', l: a[i-1]}); i--; j--; }
+    else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) { res.unshift({t:'add', l: b[j-1]}); j--; }
+    else { res.unshift({t:'rem', l: a[i-1]}); i--; }
+  }
+  return res;
+}
+function renderInlineDiff(oldStr, newStr) {
+  const a = (oldStr || '').split('\n'), b = (newStr || '').split('\n');
+  const diff = diffLines(a, b);
+  const CONTEXT = 3;
+  const keep = new Set();
+  diff.forEach((d, i) => {
+    if (d.t !== 'ctx') for (let k = Math.max(0, i-CONTEXT); k <= Math.min(diff.length-1, i+CONTEXT); k++) keep.add(k);
+  });
+  let html = '<div class="diff-view">';
+  let skipping = false;
+  diff.forEach((d, i) => {
+    if (!keep.has(i)) { if (!skipping) { html += '<span class="diff-skip">…</span>'; skipping = true; } return; }
+    skipping = false;
+    const cls = d.t === 'add' ? 'diff-add' : d.t === 'rem' ? 'diff-rem' : 'diff-ctx';
+    const pre = d.t === 'add' ? '+' : d.t === 'rem' ? '-' : ' ';
+    html += `<span class="diff-line ${cls}">${pre} ${escHtml(d.l)}</span>`;
+  });
+  return html + '</div>';
+}
+function renderUnifiedDiff(diffText) {
+  if (!diffText || !diffText.trim()) return '<div class="sv-no-session">no diff — no changes committed yet</div>';
+  let html = '<div class="diff-view">';
+  for (const line of diffText.split('\n')) {
+    if (line.startsWith('diff --git') || line.startsWith('index ') || line.startsWith('new file') || line.startsWith('deleted file')) {
+      html += `<span class="diff-hunk">${escHtml(line)}</span>`;
+    } else if (line.startsWith('+++ ') || line.startsWith('--- ')) {
+      html += `<span class="diff-fhdr">${escHtml(line)}</span>`;
+    } else if (line.startsWith('@@')) {
+      html += `<span class="diff-hunk">${escHtml(line)}</span>`;
+    } else if (line.startsWith('+')) {
+      html += `<span class="diff-line diff-add">${escHtml(line)}</span>`;
+    } else if (line.startsWith('-')) {
+      html += `<span class="diff-line diff-rem">${escHtml(line)}</span>`;
+    } else {
+      html += `<span class="diff-line diff-ctx">${escHtml(line)}</span>`;
+    }
+  }
+  return html + '</div>';
+}
+
 // ── Time helpers ──────────────────────────────────────────────────────────────
 function elapsed(isoStr) {
   if (!isoStr) return '';
@@ -789,29 +1961,45 @@ function attachOrchScrollListener() {
 }
 
 async function refreshAllLogs() {
-  if (!swarmState) return;
-  for (const [taskId] of Object.entries(swarmState.tasks || {})) {
-    const text = await fetchLog(taskId);
-    if (text === null) continue;
-    logCache[taskId] = text;
-    const el = document.getElementById(`log-content-${taskId}`);
-    if (el) {
-      const pinned = logScrollPinned.has(taskId);
-      // Save relative scroll offset from bottom before rewriting innerHTML
-      const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-      el.innerHTML = renderLogLines(text);
-      if (pinned) {
-        el.scrollTop = el.scrollHeight;
+  if (!cardsState) return;
+
+  for (const card of cardsState.active || []) {
+    const cardId = card.id;
+    const mode = logViewMode[cardId] || 'session';
+    const el = document.getElementById(`log-content-${cardId}`);
+    if (!el) continue;
+
+    if (mode === 'session') {
+      const sessionId = card.session_id;
+      if (sessionId) {
+        showChatInput(cardId, sessionId);
+        if (!sessionStreams[cardId]) {
+          // First resolution — fetch messages and start stream
+          const messages = await fetchSessionMessages(sessionId);
+          const pinned = logScrollPinned.has(cardId);
+          const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+          applySessionContent(el, messages, pinned, dist, sessionId);
+          startSessionStream(cardId, sessionId);
+        }
+        // else: stream is alive — it handles incremental updates
       } else {
-        // Restore user's position relative to the bottom
-        el.scrollTop = el.scrollHeight - el.clientHeight - distFromBottom;
+        // Session not started yet — show placeholder
+        if (!el.querySelector('.sv-no-session')) {
+          el.innerHTML = '<div class="sv-no-session">starting session…</div>';
+        }
       }
+    } else if (mode === 'diff') {
+      // Don't auto-refresh diff — user triggers via toggle
     }
+    // No log mode for worker cards (no raw log files)
   }
+
   if (orchPanelOpen) await refreshOrchLog();
 }
 
 async function refreshOrchLog() {
+  if (orchViewMode !== 'log') return; // don't clobber session/diff views
+  if (logStreams['orch']) return;     // stream handles updates
   const text = await fetchOrchLog();
   const el = document.getElementById('orch-log-content');
   if (text && el) {
@@ -843,7 +2031,13 @@ async function toggleOrchPanel() {
   }
   panel.classList.toggle('open', orchPanelOpen);
   btn.classList.toggle('active', orchPanelOpen);
-  if (orchPanelOpen) await refreshOrchLog();
+  if (orchPanelOpen) {
+    if (orchViewMode === 'log') await refreshOrchLog();
+    else await switchOrchView(orchViewMode);
+    if (orchViewMode === 'session') startOrchSessionPoll();
+  } else {
+    stopOrchSessionPoll();
+  }
 }
 
 // ── Orch panel resize drag ────────────────────────────────────────────────────
@@ -886,7 +2080,7 @@ function showRestartModal(target) {
   } else {
     // target is a task ID
     title = `Restart worker: ${target}`;
-    body  = `Individual workers are managed by the orchestrator. To force a retry of ${target}, edit state.json to set its status back to "pending", then restart the orchestrator:`;
+    body  = `Individual workers run as independent OpenCode sessions. To force a retry of ${target}, delete its card and spawn a new one:`;
     cmd   = `sudo systemctl start openswarm  # ensure swarm.env has SWARM_ARGS=--resume`;
   }
   document.getElementById('modal-title').textContent = title;
@@ -909,6 +2103,785 @@ function copyModalCmd() {
   });
 }
 
+// ── Log view toggle ───────────────────────────────────────────────────────────
+async function switchLogView(taskId, mode) {
+  logViewMode[taskId] = mode;
+  const sesBtn = document.getElementById(`log-mode-ses-${taskId}`);
+  const logBtn = document.getElementById(`log-mode-log-${taskId}`);
+  const difBtn = document.getElementById(`log-mode-dif-${taskId}`);
+  if (sesBtn) sesBtn.classList.toggle('active', mode === 'session');
+  if (logBtn) logBtn.classList.toggle('active', mode === 'log');
+  if (difBtn) difBtn.classList.toggle('active', mode === 'diff');
+
+  const lbl = document.getElementById(`log-header-label-${taskId}`);
+  if (lbl) lbl.textContent = mode === 'session' ? 'session' : mode === 'diff' ? 'diff' : 'worker log';
+
+  const el = document.getElementById(`log-content-${taskId}`);
+  if (!el) return;
+  el.innerHTML = '<span style="color:var(--muted);padding:8px 14px;display:block">loading…</span>';
+
+  if (mode === 'session') {
+    stopLogStream(taskId);
+    stopDiffStream(taskId);
+    // Look up session ID from cardsState (server resolves it via SQL)
+    const card = (cardsState?.active || []).find(c => c.id === taskId);
+    const sessionId = card?.session_id || null;
+    if (!sessionId) {
+      el.innerHTML = '<div class="sv-no-session">no session found — task may not have started yet</div>';
+    } else {
+      const messages = await fetchSessionMessages(sessionId);
+      applySessionContent(el, messages, true, 0, sessionId);
+      showChatInput(taskId, sessionId);
+      startSessionStream(taskId, sessionId);
+    }
+  } else if (mode === 'diff') {
+    stopSessionStream(taskId);
+    stopLogStream(taskId);
+    // Look up dir from cardsState
+    const card = (cardsState?.active || []).find(c => c.id === taskId);
+    const paths = card?.dir ? [card.dir] : [];
+    if (!paths.length) { el.innerHTML = '<div class="sv-no-session">no directory for this card</div>'; return; }
+    const result = await fetchWorktreeDiff(paths);
+    if (!result) { el.innerHTML = '<div class="sv-no-session">failed to fetch diff</div>'; return; }
+    const combined = Object.entries(result).map(([, v]) => v.error ? `# Error: ${v.error}` : (v.diff || '')).join('\n');
+    el.innerHTML = renderUnifiedDiff(combined);
+    startDiffStream(taskId, paths);
+  } else {
+    stopSessionStream(taskId);
+    stopDiffStream(taskId);
+    const text = logCache[taskId] || await fetchLog(taskId);
+    if (text) { logCache[taskId] = text; el.innerHTML = renderLogLines(text); }
+    el.scrollTop = el.scrollHeight;
+    startLogStream(taskId, `logs/${taskId}-worker.log`);
+  }
+}
+
+// ── Worktree diff & send-message ──────────────────────────────────────────────
+async function fetchWorktreeDiff(paths) {
+  try {
+    const r = await fetch('/api/worktree-diff?paths=' + encodeURIComponent(paths.join(',')));
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+// ── Image paste attachment ────────────────────────────────────────────────────
+// pendingAttachments: chatAreaId → [{url, mime, filename}]
+const pendingAttachments = {};
+
+function _attKey(textarea) {
+  const area = textarea.closest('.chat-input-area');
+  return area ? area.id : null;
+}
+
+function _attContainer(key) {
+  // orch uses a fixed id; cards use chat-attachments-<cardId>
+  if (key === 'orch-chat-input') return document.getElementById('orch-chat-attachments');
+  const cardId = key.replace('chat-input-', '');
+  return document.getElementById(`chat-attachments-${cardId}`);
+}
+
+function _renderAttachments(key) {
+  const container = _attContainer(key);
+  if (!container) return;
+  const items = pendingAttachments[key] || [];
+  if (items.length === 0) { container.style.display = 'none'; container.innerHTML = ''; return; }
+  container.style.display = 'flex';
+  container.innerHTML = items.map((item, i) =>
+    `<div class="chat-attachment-thumb">
+      <img src="${item.url}" title="${item.filename}">
+      <span class="remove-att" onclick="removeAttachment(${JSON.stringify(key)},${i})" title="Remove">✕</span>
+    </div>`
+  ).join('');
+}
+
+function removeAttachment(key, index) {
+  if (!pendingAttachments[key]) return;
+  pendingAttachments[key].splice(index, 1);
+  _renderAttachments(key);
+}
+
+function clearAttachments(key) {
+  delete pendingAttachments[key];
+  _renderAttachments(key);
+}
+
+// Delegated paste handler — fires for any .chat-textarea
+document.addEventListener('paste', async (e) => {
+  const ta = e.target;
+  if (!ta || !ta.classList.contains('chat-textarea')) return;
+  const key = _attKey(ta);
+  if (!key) return;
+
+  const imageFiles = [];
+  // Prefer clipboardData.files, fall back to items
+  Array.from(e.clipboardData.files || []).forEach(f => {
+    if (f.type.startsWith('image/')) imageFiles.push(f);
+  });
+  if (imageFiles.length === 0) {
+    Array.from(e.clipboardData.items || []).forEach(item => {
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const f = item.getAsFile();
+        if (f) imageFiles.push(f);
+      }
+    });
+  }
+  if (imageFiles.length === 0) return;
+
+  e.preventDefault();
+  if (!pendingAttachments[key]) pendingAttachments[key] = [];
+
+  for (const file of imageFiles) {
+    await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const ext = file.type.split('/')[1] || 'png';
+        pendingAttachments[key].push({
+          url: ev.target.result,
+          mime: file.type,
+          filename: file.name || `clipboard-image.${ext}`,
+        });
+        resolve();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  _renderAttachments(key);
+});
+
+async function sendMessage(sessionId, text, opts = {}, files = []) {
+  try {
+    const parts = [{type: 'text', text}];
+    for (const f of files) {
+      parts.push({type: 'file', mime: f.mime, url: f.url, filename: f.filename});
+    }
+    const body = { parts };
+    if (opts.model) {
+      const [providerID, modelID] = opts.model.split('/', 2);
+      if (providerID && modelID) body.model = {providerID, modelID};
+    }
+    if (opts.agent) body.agent = opts.agent;
+    if (opts.variant) {
+      if (body.model) body.model.variant = opts.variant;
+    }
+    const r = await fetch(`/api/oc/session/${encodeURIComponent(sessionId)}/prompt_async`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    // prompt_async returns 204 No Content on success
+    return r.ok;
+  } catch { return false; }
+}
+
+async function copyMsg(text, btn) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      // HTTP fallback via textarea + execCommand
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    // Visual feedback: flash button green for 1.5s
+    if (btn) {
+      const prev = btn.innerHTML;
+      const prevTitle = btn.title;
+      btn.innerHTML = '✓';
+      btn.title = 'copied!';
+      btn.style.color = 'var(--green, #4caf50)';
+      setTimeout(() => { btn.innerHTML = prev; btn.title = prevTitle; btn.style.color = ''; }, 1500);
+    }
+  } catch { /* ignore */ }
+}
+
+async function forkMsg(sessionId, text, btn) {
+  if (!sessionId || !text) return;
+  if (btn) btn.disabled = true;
+  try {
+    // Step 1: fork the session via opencode endpoint → returns new Session object
+    const fr = await fetch(`/api/oc/session/${encodeURIComponent(sessionId)}/fork`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({}),
+    });
+    const fd = await fr.json();
+    if (!fr.ok || !fd.id) { console.warn('fork failed', fd); if (btn) btn.disabled = false; return; }
+    const newSessionId = fd.id;
+
+    // Step 2: send the original message to the new (forked) session
+    const sr = await fetch(`/api/oc/session/${encodeURIComponent(newSessionId)}/prompt_async`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({parts: [{type: 'text', text}]}),
+    });
+    if (!sr.ok) console.warn('fork send failed', sr.status);
+
+    // Step 3: if this was the orch panel session, switch to the forked session
+    if (sessionId === orchSessionId) {
+      orchSessionId = newSessionId;
+      const el = document.getElementById('orch-log-content');
+      const msgs = await fetchSessionMessages(orchSessionId, 150);
+      if (el) applySessionContent(el, msgs, orchScrollPinned, 0, orchSessionId);
+      const chatArea = document.getElementById('orch-chat-input');
+      if (chatArea) { chatArea.classList.add('visible'); chatArea._sessionId = orchSessionId; }
+      stopSessionStream('orch');
+      startSessionStream('orch', orchSessionId);
+    }
+
+    // Visual feedback
+    if (btn) {
+      const prev = btn.innerHTML; const prevTitle = btn.title;
+      btn.innerHTML = '✓'; btn.title = 'forked!';
+      btn.style.color = 'var(--green, #4caf50)';
+      setTimeout(() => { btn.innerHTML = prev; btn.title = prevTitle; btn.style.color = ''; }, 1500);
+    }
+  } catch (e) { console.warn('forkMsg error', e); }
+  if (btn) btn.disabled = false;
+}
+
+async function undoMsg(sessionId, msgId) {
+  if (!sessionId || !msgId) return;
+  if (!confirm('Delete this message and everything after it?')) return;
+  try {
+    const r = await fetch(`/api/oc/session/${encodeURIComponent(sessionId)}/revert`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({messageID: msgId}),
+    });
+    const d = await r.json();
+    if (r.ok) {
+      // Refresh the session view that contains this message
+      const orchEl = document.getElementById('orch-log-content');
+      if (orchEl && orchViewMode === 'session' && sessionId === orchSessionId) {
+        const msgs = await fetchSessionMessages(sessionId, 150);
+        applySessionContent(orchEl, msgs, true, 0, sessionId);
+      } else {
+        // Find which task card owns this session
+        for (const [taskId, sid] of Object.entries(taskSessionMap || {})) {
+          if (sid === sessionId) {
+            const el = document.getElementById(`log-content-${taskId}`);
+            if (el) {
+              const msgs = await fetchSessionMessages(sessionId);
+              applySessionContent(el, msgs, true, 0, sessionId);
+            }
+            break;
+          }
+        }
+      }
+    } else {
+      alert('undo failed: ' + (d.error || 'unknown error'));
+    }
+  } catch (e) { console.warn('undoMsg error', e); }
+}
+
+function showChatInput(taskId, sessionId) {
+  const area = document.getElementById(`chat-input-${taskId}`);
+  if (!area) return;
+  area.classList.add('visible');
+  area._sessionId = sessionId;
+  taskSessionMap[taskId] = sessionId;  // track for undoMsg lookups
+  const ta = area.querySelector('.chat-textarea');
+  const btn = area.querySelector('.chat-send-btn');
+  if (ta) { ta.disabled = false; ta.placeholder = 'send message… (Enter to send)'; }
+  if (btn) btn.disabled = false;
+}
+
+async function submitChatMessage(taskId) {
+  const area = document.getElementById(`chat-input-${taskId}`);
+  if (!area) return;
+  const ta = area.querySelector('.chat-textarea');
+  const btn = area.querySelector('.chat-send-btn');
+  const text = ta?.value?.trim();
+  const attKey = `chat-input-${taskId}`;
+  const files = pendingAttachments[attKey] ? [...pendingAttachments[attKey]] : [];
+  if (!text && !files.length) return;
+  if (!area._sessionId) return;
+  btn.disabled = true; btn.textContent = '…';
+  const opts = readToolbarOpts(`card-${taskId}`);
+  const ok = await sendMessage(area._sessionId, text, opts, files);
+  if (ok) {
+    ta.value = '';
+    clearAttachments(attKey);
+    btn.textContent = 'send'; btn.disabled = false;
+    const el = document.getElementById(`log-content-${taskId}`);
+    if (el) {
+      const msgs = await fetchSessionMessages(area._sessionId);
+      applySessionContent(el, msgs, true, 0, area._sessionId);
+    }
+  } else {
+    btn.textContent = 'err'; btn.style.color = 'var(--red)';
+    setTimeout(() => { btn.textContent = 'send'; btn.disabled = false; btn.style.color = ''; }, 2000);
+  }
+}
+
+// ── Orchestrator panel view ───────────────────────────────────────────────────
+// ── Expanded card ─────────────────────────────────────────────────────────────
+let expandedCard = null;
+
+function toggleCardExpand(taskId) {
+  const card = document.getElementById(`card-${taskId}`);
+  if (!card) return;
+  const btn = document.getElementById(`expand-btn-${taskId}`);
+  if (expandedCard && expandedCard !== taskId) {
+    // Collapse the previously expanded card first
+    const prev = document.getElementById(`card-${expandedCard}`);
+    if (prev) prev.classList.remove('expanded');
+    const prevBtn = document.getElementById(`expand-btn-${expandedCard}`);
+    if (prevBtn) prevBtn.title = 'expand';
+    expandedCard = null;
+  }
+  const isExpanded = card.classList.toggle('expanded');
+  expandedCard = isExpanded ? taskId : null;
+  if (btn) btn.title = isExpanded ? 'collapse' : 'expand';
+  const bottomBar = document.getElementById('bottom-bar');
+  if (bottomBar) bottomBar.style.display = isExpanded ? 'none' : '';
+  if (isExpanded) populateChatToolbar(`card-${taskId}`);
+}
+
+let orchViewMode = 'session';
+let orchSessionId = null;
+const OPENSWARM_DIR = '/home/ubuntu/server/openswarm/orch-workspace';
+
+// ── Multi-session state ───────────────────────────────────────────────────────
+let orchProjectList = [];       // [{id, dir, label, created_at}, ...]
+let activeOrchProjectId = null; // currently selected tab
+
+async function loadOrchProjects() {
+  // Stub — orch session is now discovered directly from opencode, not projects.json.
+  // Kept to avoid breaking call sites; actual work is done in refreshOrchSession.
+  renderSessionTabs();
+  if (orchPanelOpen && orchViewMode === 'session') {
+    const el = document.getElementById('orch-log-content');
+    if (el) await refreshOrchSession(el);
+  }
+}
+
+function renderSessionTabs() {
+  // Session tabs are no longer used — orch session is a single fixed opencode session.
+  // Keep the + button visible for future use but clear the tab list.
+  const wrap = document.getElementById('orch-session-tabs');
+  if (wrap) wrap.innerHTML = '';
+  const chip = document.getElementById('orch-debug-chip');
+  if (chip) chip.style.display = 'none';
+}
+
+async function selectOrchProject(id) {
+  // No-op — single orch session, no project switching needed.
+}
+
+async function removeSession(id) {
+  // No-op — project removal not applicable in opencode-native orch.
+}
+
+// ── Spawn form ────────────────────────────────────────────────────────────────
+let _acItems = [];
+let _acIndex = -1;
+
+function toggleSpawnForm() {
+  const f = document.getElementById('orch-spawn-form');
+  const visible = f.style.display !== 'none';
+  f.style.display = visible ? 'none' : 'flex';
+  if (!visible) document.getElementById('orch-spawn-dir').focus();
+}
+
+async function onSpawnDirInput(val) {
+  const ac = document.getElementById('orch-spawn-autocomplete');
+  if (!val.trim()) { ac.style.display = 'none'; return; }
+  try {
+    const r = await fetch('/api/fs/dirs?q=' + encodeURIComponent(val));
+    _acItems = await r.json();
+  } catch { _acItems = []; }
+  _acIndex = -1;
+  if (!_acItems.length) { ac.style.display = 'none'; return; }
+  ac.innerHTML = _acItems.map((p, i) =>
+    `<div class="ac-item" data-i="${i}" onclick="pickAcItem(${i})"
+      style="padding:3px 8px;font-size:11px;cursor:pointer;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+      onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background=''">${escHtml(p)}</div>`
+  ).join('');
+  ac.style.display = 'block';
+}
+
+function pickAcItem(i) {
+  const input = document.getElementById('orch-spawn-dir');
+  input.value = _acItems[i];
+  document.getElementById('orch-spawn-autocomplete').style.display = 'none';
+  _acIndex = -1;
+}
+
+function onSpawnDirKey(e) {
+  const ac = document.getElementById('orch-spawn-autocomplete');
+  const items = ac.querySelectorAll('.ac-item');
+  if (e.key === 'ArrowDown') { e.preventDefault(); _acIndex = Math.min(_acIndex + 1, items.length - 1); highlightAc(items); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); _acIndex = Math.max(_acIndex - 1, -1); highlightAc(items); }
+  else if (e.key === 'Enter' && _acIndex >= 0) { e.preventDefault(); pickAcItem(_acIndex); }
+  else if (e.key === 'Escape') { ac.style.display = 'none'; }
+  else if (e.key === 'Enter' && _acIndex < 0) { e.preventDefault(); spawnSession(); }
+}
+
+function highlightAc(items) {
+  items.forEach((el, i) => el.style.background = i === _acIndex ? 'var(--surface)' : '');
+  if (_acIndex >= 0 && items[_acIndex]) {
+    document.getElementById('orch-spawn-dir').value = _acItems[_acIndex];
+  }
+}
+
+// ── Worker spawn dir autocomplete ─────────────────────────────────────────────
+let _workerAcItems = [], _workerAcIndex = -1;
+async function onWorkerDirInput(val) {
+  const ac = document.getElementById('worker-spawn-autocomplete');
+  if (!val.trim()) { ac.style.display = 'none'; return; }
+  try {
+    const r = await fetch('/api/fs/dirs?q=' + encodeURIComponent(val));
+    _workerAcItems = await r.json();
+  } catch { _workerAcItems = []; }
+  _workerAcIndex = -1;
+  if (!_workerAcItems.length) { ac.style.display = 'none'; return; }
+  ac.innerHTML = _workerAcItems.map((p, i) =>
+    `<div class="ac-item" data-i="${i}" onclick="pickWorkerAcItem(${i})"
+      style="padding:3px 8px;font-size:11px;cursor:pointer;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+      onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background=''">${escHtml(p)}</div>`
+  ).join('');
+  ac.style.display = 'block';
+}
+function pickWorkerAcItem(i) {
+  const input = document.getElementById('worker-spawn-dir');
+  input.value = _workerAcItems[i];
+  document.getElementById('worker-spawn-autocomplete').style.display = 'none';
+  _workerAcIndex = -1;
+  fetchWorktreesForDir(_workerAcItems[i]);
+}
+function onWorkerDirKey(e) {
+  const ac = document.getElementById('worker-spawn-autocomplete');
+  const items = ac.querySelectorAll('.ac-item');
+  if (e.key === 'ArrowDown') { e.preventDefault(); _workerAcIndex = Math.min(_workerAcIndex + 1, items.length - 1); highlightWorkerAc(items); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); _workerAcIndex = Math.max(_workerAcIndex - 1, -1); highlightWorkerAc(items); }
+  else if (e.key === 'Enter' && _workerAcIndex >= 0) { e.preventDefault(); pickWorkerAcItem(_workerAcIndex); }
+  else if (e.key === 'Escape') { ac.style.display = 'none'; }
+}
+function highlightWorkerAc(items) {
+  items.forEach((el, i) => el.style.background = i === _workerAcIndex ? 'var(--surface)' : '');
+  if (_workerAcIndex >= 0 && items[_workerAcIndex]) {
+    document.getElementById('worker-spawn-dir').value = _workerAcItems[_workerAcIndex];
+  }
+}
+
+// ── Orch session dir autocomplete ─────────────────────────────────────────────
+let _orchSesAcItems = [], _orchSesAcIndex = -1;
+async function onOrchSessionDirInput(val) {
+  const ac = document.getElementById('orch-session-autocomplete');
+  if (!val.trim()) { ac.style.display = 'none'; return; }
+  try {
+    const r = await fetch('/api/fs/dirs?q=' + encodeURIComponent(val));
+    _orchSesAcItems = await r.json();
+  } catch { _orchSesAcItems = []; }
+  _orchSesAcIndex = -1;
+  if (!_orchSesAcItems.length) { ac.style.display = 'none'; return; }
+  ac.innerHTML = _orchSesAcItems.map((p, i) =>
+    `<div class="ac-item" data-i="${i}" onclick="pickOrchSesAcItem(${i})"
+      style="padding:3px 8px;font-size:11px;cursor:pointer;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+      onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background=''">${escHtml(p)}</div>`
+  ).join('');
+  ac.style.display = 'block';
+}
+function pickOrchSesAcItem(i) {
+  const input = document.getElementById('orch-session-dir');
+  input.value = _orchSesAcItems[i];
+  document.getElementById('orch-session-autocomplete').style.display = 'none';
+  _orchSesAcIndex = -1;
+}
+function onOrchSessionDirKey(e) {
+  const ac = document.getElementById('orch-session-autocomplete');
+  const items = ac.querySelectorAll('.ac-item');
+  if (e.key === 'ArrowDown') { e.preventDefault(); _orchSesAcIndex = Math.min(_orchSesAcIndex + 1, items.length - 1); highlightOrchSesAc(items); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); _orchSesAcIndex = Math.max(_orchSesAcIndex - 1, -1); highlightOrchSesAc(items); }
+  else if (e.key === 'Enter' && _orchSesAcIndex >= 0) { e.preventDefault(); pickOrchSesAcItem(_orchSesAcIndex); }
+  else if (e.key === 'Escape') { ac.style.display = 'none'; }
+  else if (e.key === 'Enter' && _orchSesAcIndex < 0) { e.preventDefault(); createOrchSession(); }
+}
+function highlightOrchSesAc(items) {
+  items.forEach((el, i) => el.style.background = i === _orchSesAcIndex ? 'var(--surface)' : '');
+  if (_orchSesAcIndex >= 0 && items[_orchSesAcIndex]) {
+    document.getElementById('orch-session-dir').value = _orchSesAcItems[_orchSesAcIndex];
+  }
+}
+
+async function spawnSession() {
+  const dirInput = document.getElementById('orch-spawn-dir');
+  const dir = dirInput?.value?.trim();
+  if (!dir) { if (dirInput) dirInput.focus(); return; }
+
+  // Guard: refuse to overwrite an existing live orch session.
+  // The user must explicitly delete it (× session) before spawning a new one.
+  if (orchSessionId) {
+    const existing = await fetch('/api/orch/session').then(r => r.json()).catch(() => null);
+    if (existing?.id) {
+      const el = document.getElementById('orch-log-content');
+      if (el) el.innerHTML = `<div class="sv-no-session" style="padding:14px;color:var(--yellow,#e6a817)">` +
+        `An orchestrator session is already active (id: <code>${existing.id}</code>).<br>` +
+        `Use <strong>× session</strong> to close it before spawning a new one.</div>`;
+      toggleSpawnForm();
+      return;
+    }
+  }
+
+  toggleSpawnForm();
+  const el = document.getElementById('orch-log-content');
+  if (el) el.innerHTML = '<div class="sv-no-session" style="padding:14px">Creating session…</div>';
+  try {
+    const r = await fetch('/api/orch/session', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({directory: dir}) });
+    if (!r.ok) {
+      const err = await r.text().catch(() => '');
+      if (el) el.innerHTML = `<div class="sv-no-session" style="padding:14px;color:var(--red)">Failed to create session: ${r.status} ${err}</div>`;
+      return;
+    }
+  } catch(e) {
+    if (el) el.innerHTML = `<div class="sv-no-session" style="padding:14px;color:var(--red)">Error: ${e.message}</div>`;
+    return;
+  }
+  await refreshOrchSession();
+}
+// ── Directory filter (bottom bar) ─────────────────────────────────────────────
+let hiddenDirs = new Set(); // dirs whose cards are hidden
+
+function allKnownDirs() {
+  const dirs = new Set();
+  // from task cards
+  document.querySelectorAll('.task-card[data-dir]').forEach(el => dirs.add(el.dataset.dir));
+  // from orch projects
+  for (const s of orchProjectList) dirs.add(s.dir);
+  return [...dirs].sort();
+}
+
+function buildDirFilter() {
+  const dd = document.getElementById('dir-filter-dropdown');
+  if (!dd) return;
+  const dirs = allKnownDirs();
+  if (!dirs.length) { dd.innerHTML = '<div style="padding:6px 10px;font-size:10px;color:var(--muted)">no directories</div>'; return; }
+  dd.innerHTML = dirs.map(d => {
+    const hidden = hiddenDirs.has(d);
+    const short = d.split('/').slice(-2).join('/');
+    return `<label style="display:flex;align-items:center;gap:6px;padding:4px 10px;cursor:pointer;font-size:11px">
+      <input type="checkbox" ${hidden ? '' : 'checked'} onchange="toggleDirHide('${d.replace(/'/g,"\\'")}', this.checked)" style="accent-color:var(--blue)">
+      <span title="${escHtml(d)}">${escHtml(short)}</span>
+    </label>`;
+  }).join('');
+  updateFilterCount();
+}
+
+function toggleDirFilter() {
+  const dd = document.getElementById('dir-filter-dropdown');
+  const open = dd.style.display !== 'none';
+  if (!open) buildDirFilter();
+  dd.style.display = open ? 'none' : 'block';
+  document.getElementById('dir-filter-btn').textContent = open ? 'all directories ▾' : 'filter ▴';
+}
+
+function toggleDirHide(dir, show) {
+  if (show) hiddenDirs.delete(dir);
+  else hiddenDirs.add(dir);
+  applyDirFilter();
+  updateFilterCount();
+}
+
+function applyDirFilter() {
+  document.querySelectorAll('.task-card[data-dir]').forEach(el => {
+    const dir = el.dataset.dir;
+    el.style.display = hiddenDirs.has(dir) ? 'none' : '';
+  });
+}
+
+function updateFilterCount() {
+  const el = document.getElementById('dir-filter-count');
+  if (!el) return;
+  const total = allKnownDirs().length;
+  const hidden = hiddenDirs.size;
+  el.textContent = hidden ? `${total - hidden}/${total} shown` : '';
+  const btn = document.getElementById('dir-filter-btn');
+  if (btn) btn.textContent = hidden ? `${total - hidden}/${total} dirs ▾` : 'all directories ▾';
+}
+
+let _orchSessionInterval = null;
+
+async function refreshOrchSession(el) {
+  if (!el) el = document.getElementById('orch-log-content');
+  if (!el) return;
+  const chatArea = document.getElementById('orch-chat-input');
+
+  let session = null;
+  try {
+    const r = await fetch('/api/orch/session');
+    if (r.ok) session = await r.json();
+  } catch(e) { console.error('[orch] refreshOrchSession fetch failed', e); }
+
+  if (!session) {
+    if (chatArea) chatArea.classList.remove('visible');
+    const createBtn = document.getElementById('orch-create-session-btn');
+    if (createBtn) createBtn.style.display = '';
+    const deleteBtn = document.getElementById('orch-delete-session-btn');
+    if (deleteBtn) deleteBtn.style.display = 'none';
+    el.innerHTML = `<div class="sv-no-session" style="padding:16px 14px;display:flex;flex-direction:column;gap:10px">
+      <span style="color:var(--muted)">No orchestrator session.</span>
+    </div>`;
+    return;
+  }
+
+  const createBtn = document.getElementById('orch-create-session-btn');
+  if (createBtn) createBtn.style.display = 'none';
+  const deleteBtn = document.getElementById('orch-delete-session-btn');
+  if (deleteBtn) deleteBtn.style.display = '';
+
+  const newSessionId = session.id;
+  const sessionChanged = newSessionId !== orchSessionId;
+  orchSessionId = newSessionId;
+  const msgs = await fetchSessionMessages(orchSessionId, 150);
+  applySessionContent(el, msgs, orchScrollPinned, 0, orchSessionId);
+  if (chatArea) { chatArea.classList.add('visible'); chatArea._sessionId = orchSessionId; }
+  if (sessionChanged) startSessionStream('orch', orchSessionId);
+}
+
+async function createOrchSession() {
+  const dirInput = document.getElementById('orch-session-dir');
+  const dir = dirInput?.value?.trim();
+  if (!dir) { if (dirInput) dirInput.focus(); return; }
+  hideOrchSessionForm();
+  const el = document.getElementById('orch-log-content');
+  if (el) el.innerHTML = '<div class="sv-no-session" style="padding:14px">Creating session…</div>';
+  try {
+    const r = await fetch('/api/orch/session', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({directory: dir}) });
+    if (!r.ok) {
+      const err = await r.text().catch(() => '');
+      if (el) el.innerHTML = `<div class="sv-no-session" style="padding:14px;color:var(--red)">Failed to create session: ${r.status} ${err}</div>`;
+      const createBtn = document.getElementById('orch-create-session-btn');
+      if (createBtn) createBtn.style.display = '';
+      return;
+    }
+  } catch(e) {
+    if (el) el.innerHTML = `<div class="sv-no-session" style="padding:14px;color:var(--red)">Error: ${e.message}</div>`;
+    const createBtn = document.getElementById('orch-create-session-btn');
+    if (createBtn) createBtn.style.display = '';
+    return;
+  }
+  await refreshOrchSession();
+}
+
+function showOrchSessionForm() {
+  const form = document.getElementById('orch-session-form');
+  const dirInput = document.getElementById('orch-session-dir');
+  const createBtn = document.getElementById('orch-create-session-btn');
+  if (createBtn) createBtn.style.display = 'none';
+  if (form) { form.style.display = 'flex'; }
+  if (dirInput) { dirInput.value = '/home/ubuntu/server/'; dirInput.focus(); }
+}
+
+function hideOrchSessionForm() {
+  const form = document.getElementById('orch-session-form');
+  if (form) form.style.display = 'none';
+  const createBtn = document.getElementById('orch-create-session-btn');
+  // Only show create btn again if no session exists
+  if (!orchSessionId && createBtn) createBtn.style.display = '';
+}
+
+async function deleteOrchSession() {
+  orchSessionId = null;
+  stopOcEventStream();
+  await fetch('/api/orch/session', { method: 'DELETE' });
+  await refreshOrchSession();
+}
+function startOrchSessionPoll() {
+  stopOrchSessionPoll();
+  _orchSessionInterval = setInterval(async () => {
+    if (orchViewMode !== 'session') return;
+    if (!orchSessionId) { await refreshOrchSession(); return; }
+    // Refresh messages without touching the SSE stream or chat visibility
+    const msgs = await fetchSessionMessages(orchSessionId, 150);
+    const el = document.getElementById('orch-log-content');
+    if (el && msgs) applySessionContent(el, msgs, orchScrollPinned, 0, orchSessionId);
+  }, 30000);
+}
+
+function stopOrchSessionPoll() {
+  if (_orchSessionInterval) { clearInterval(_orchSessionInterval); _orchSessionInterval = null; }
+}
+
+// ── Autonomous toggle ─────────────────────────────────────────────────────────
+let autonomousMode = true; // default; overridden at boot from settings
+
+async function onAutonomousToggle(checked) {
+  autonomousMode = checked;
+  // Persist to settings — load current settings first to avoid overwriting other fields
+  try {
+    const current = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
+    await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...current, autonomous: checked }),
+    });
+  } catch (e) {
+    console.warn('Failed to save autonomous setting:', e);
+  }
+}
+
+
+async function switchOrchView(mode) {
+  orchViewMode = mode;
+  if (mode !== 'session') stopOrchSessionPoll();
+  else if (orchPanelOpen) startOrchSessionPoll();
+  document.getElementById('orch-mode-ses').classList.toggle('active', mode === 'session');
+  document.getElementById('orch-mode-log').classList.toggle('active', mode === 'log');
+  document.getElementById('orch-mode-dif').classList.toggle('active', mode === 'diff');
+  const el = document.getElementById('orch-log-content');
+  el.innerHTML = '<span style="color:var(--muted);padding:8px 14px;display:block">loading…</span>';
+
+  if (mode === 'log') {
+    stopSessionStream('orch');
+    stopDiffStream('orch');
+    await refreshOrchLog();
+    startLogStream('orch', 'logs/orchestrator.log');
+  } else if (mode === 'session') {
+    stopLogStream('orch');
+    stopDiffStream('orch');
+    // Only stop the session stream if switching away and back; don't remove visible yet
+    await refreshOrchSession(el);
+  } else if (mode === 'diff') {
+    stopSessionStream('orch');
+    stopLogStream('orch');
+    // Collect dirs from all active cards
+    const allPaths = (cardsState?.active || []).map(c => c.dir).filter(Boolean);
+    if (!allPaths.length) { el.innerHTML = '<div class="sv-no-session">no active card directories</div>'; return; }
+    const result = await fetchWorktreeDiff(allPaths);
+    if (!result) { el.innerHTML = '<div class="sv-no-session">failed to fetch diff</div>'; return; }
+    const combined = Object.entries(result).map(([p, v]) =>
+      v.error ? `# Error (${p.split('/').pop()}): ${v.error}` : (v.diff || '')).join('\n');
+    el.innerHTML = renderUnifiedDiff(combined);
+    startDiffStream('orch', allPaths);
+  }
+}
+
+async function submitOrchMessage() {
+  const area = document.getElementById('orch-chat-input');
+  if (!area) return;
+  const ta = area.querySelector('.chat-textarea');
+  const btn = area.querySelector('.chat-send-btn');
+  const text = ta?.value?.trim();
+  const sid = area._sessionId || orchSessionId;
+  const files = pendingAttachments['orch-chat-input'] ? [...pendingAttachments['orch-chat-input']] : [];
+  if ((!text && files.length === 0) || !sid) return;
+  const opts = readToolbarOpts('orch');
+  btn.disabled = true; btn.textContent = '…';
+  const ok = await sendMessage(sid, text || '', opts, files);
+  if (ok) {
+    ta.value = ''; btn.textContent = 'send'; btn.disabled = false;
+    clearAttachments('orch-chat-input');
+  } else {
+    btn.textContent = 'err'; btn.style.color = 'var(--red)';
+    setTimeout(() => { btn.textContent = 'send'; btn.disabled = false; btn.style.color = ''; }, 2000);
+  }
+}
+
 // ── Card rendering ────────────────────────────────────────────────────────────
 function statusBadge(status) {
   const labels = { pending:'pending', in_progress:'running', done:'done', failed:'failed' };
@@ -920,97 +2893,85 @@ function escHtml(s) {
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function renderCard(taskId, task, depsArr) {
-  const meta   = (depsArr || []).find(d => d.id === taskId) || {};
-  const title  = meta.title || taskId;
-  const repos  = meta.repos || [];
-  const status = task.status || 'pending';
+function renderWorkerCard(card) {
+  const cardId = card.id;
+  const label  = card.label || cardId;
+  const dir    = card.dir || '';
+  const worktree = card.worktree || null;
+  const sessionReady = !!card.session_id;
+  const viewMode = logViewMode[cardId] || 'session';
 
-  let timerHtml = '';
-  if (status === 'in_progress' && task.started_at) {
-    timerHtml = `<span class="timer" id="timer-${taskId}">${elapsed(task.started_at)}</span>`;
-  } else if ((status === 'done' || status === 'failed') && task.started_at && task.finished_at) {
-    timerHtml = `<span style="color:var(--dim)">${duration(task.started_at, task.finished_at)}</span>`;
-  } else if (task.started_at) {
-    timerHtml = `<span class="timer" id="timer-${taskId}">${elapsed(task.started_at)}</span>`;
-  }
+  const worktreeBadge = worktree
+    ? `<span class="dir-badge" title="${escHtml(dir)}">${escHtml(worktree.split('/').pop())}</span>`
+    : '';
 
-  const repoTagsHtml = repos.map(r => `<span class="repo-tag">${r}</span>`).join('');
-  const attempts = task.attempts > 0
-    ? `<span style="color:var(--dim)">attempt ${task.attempts}/2</span>` : '';
+  const statusDot = sessionReady
+    ? `<span class="status-badge running" title="session active">running</span>`
+    : `<span class="status-badge pending" title="waiting for session">pending</span>`;
 
-  let worktreesHtml = '';
-  if (task.worktrees && Object.keys(task.worktrees).length) {
-    worktreesHtml = `<div class="worktrees">` +
-      Object.entries(task.worktrees).map(([, path]) => {
-        const short = path.replace('/home/ubuntu/server/yact/', '');
-        return `<div class="wt-line"><span class="wt-repo">worktree</span>${short}</div>`;
-      }).join('') + `</div>`;
-  }
-
-  let errIconsHtml = '';
-  if (status === 'failed' && task.failure_reason) {
-    errIconsHtml += `<span class="err-icon fail" data-tip="${escHtml(task.failure_reason)}">⚠</span>`;
-  }
-  if (status === 'failed' && task.investigator_diagnosis && task.investigator_diagnosis.trim().length > 4) {
-    errIconsHtml += `<span class="err-icon diag" data-tip="${escHtml(task.investigator_diagnosis.substring(0, 400))}">⊙</span>`;
-  }
-
-  const logText = logCache[taskId] || '';
+  const contentHtml = '<span style="color:var(--muted);padding:8px 14px;display:block">loading…</span>';
 
   return `
-<div class="card ${status}" id="card-${taskId}">
+<div class="card task-card" id="card-${cardId}" data-dir="${escHtml(dir)}">
   <div class="card-header">
-    <span class="task-id" style="color:var(--muted);font-weight:400">task</span>
-    <span class="card-title">${title && title !== taskId ? escHtml(title) : escHtml(taskId)}</span>
-    ${attempts ? `<span style="color:var(--dim);font-size:10px;flex-shrink:0">${attempts}</span>` : ''}
-    ${timerHtml ? `<span style="flex-shrink:0">${timerHtml}</span>` : ''}
-    ${errIconsHtml}
-    ${statusBadge(status)}
-    <button class="icon-btn" style="font-size:9px;padding:2px 6px;margin-left:4px" onclick="showRestartModal('${taskId}')" title="Restart this worker">⟳</button>
+    <span class="card-title">${escHtml(label)}</span>
+    ${worktreeBadge}
+    ${statusDot}
+    <button class="icon-btn" style="font-size:9px;padding:2px 6px;margin-left:auto;color:var(--muted);transition:color 0.15s" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'"
+      onclick="closeCard('${cardId}')" title="Close card">✕</button>
   </div>
-  ${worktreesHtml}
   <div class="log-header">
-    <span>worker log</span>
-    <span style="color:var(--muted);font-size:9px"></span>
+    <div class="log-header-left">
+      <span id="log-header-label-${cardId}">session</span>
+    </div>
+    <div class="log-header-right">
+      <div class="log-view-toggle">
+        <button id="log-mode-ses-${cardId}" onclick="switchLogView('${cardId}','session')"
+          class="${viewMode==='session'?'active':''}">session</button>
+        <button id="log-mode-dif-${cardId}" onclick="switchLogView('${cardId}','diff')"
+          class="${viewMode==='diff'?'active':''}">diff</button>
+      </div>
+      <button class="expand-btn" id="expand-btn-${cardId}"
+        onclick="toggleCardExpand('${cardId}')" title="expand">⤢</button>
+    </div>
   </div>
-  <div class="log-content" id="log-content-${taskId}">${logText ? renderLogLines(logText) : '<span style="color:var(--muted);padding:8px 14px;display:block">loading…</span>'}</div>
+  <div class="log-content" id="log-content-${cardId}">${contentHtml}</div>
+  <div class="chat-input-area chat-input-orch" id="chat-input-${cardId}">
+    <div class="activity-bar" id="card-${cardId}-activity-bar">
+      <span class="activity-pill" id="card-${cardId}-activity-text"></span>
+    </div>
+    <div id="chat-attachments-${cardId}" class="chat-attachments" style="display:none"></div>
+    <div class="chat-main-row">
+      <textarea class="chat-textarea" rows="1" placeholder="send message… (Enter to send)"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitChatMessage('${cardId}')}"></textarea>
+      <button class="abort-btn" id="card-${cardId}-abort-btn" style="display:none" onclick="abortSession(taskSessionMap['${cardId}'],'${cardId}')">abort</button>
+      <button class="chat-send-btn" onclick="submitChatMessage('${cardId}')">send</button>
+    </div>
+    <div id="card-${cardId}-toolbar-mount"></div>
+  </div>
 </div>`;
 }
 
 // ── Main render ───────────────────────────────────────────────────────────────
-let deps = null;
-
-async function fetchDeps() {
-  try {
-    const r = await fetch('../yact-dev-docs/.tasks/open/ROADMAP_DEPS.json?_=' + Date.now());
-    if (r.ok) deps = await r.json();
-  } catch {}
-}
 
 async function refresh() {
   try {
-    const r = await fetch('state.json?_=' + Date.now());
+    const r = await fetch('/api/cards?_=' + Date.now());
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    swarmState = await r.json();
+    cardsState = await r.json();
     setStale(false);
-    render(swarmState);
+    renderCards(cardsState);
   } catch (e) {
-    // Never wipe the display — keep showing the last known state.
-    // Only show empty placeholder if we've never loaded anything at all.
-    if (!swarmState) {
-      renderEmpty();
-    }
-    setStale(true, e.message.includes('404') ? 'no state.json yet' : e.message);
+    if (!cardsState) renderEmpty();
+    setStale(true, e.message.includes('404') ? 'no cards yet' : e.message);
   }
   setTimeout(updateTopH, 50);
 }
-
 function setStale(isStale, reason) {
   const dot = document.getElementById('live-dot');
   if (isStale) {
     dot.classList.add('stale');
-    dot.title = reason || 'state.json unreachable';
+    dot.title = reason || 'cards.json unreachable';
   } else {
     dot.classList.remove('stale');
     dot.title = '';
@@ -1026,51 +2987,37 @@ function renderEmpty() {
   document.getElementById('hdr-stats').style.display = 'none';
   document.getElementById('grid').innerHTML = `
     <div class="empty-state">
-      <div>No run data yet.</div>
+      <div>No active cards.</div>
       <div style="margin-top:8px;color:var(--dim);font-size:11px">
-        Start a run: <code style="color:var(--blue)">sudo systemctl start openswarm</code>
+        Click <strong>spawn agent</strong> to spawn a worker session, or enable autonomous mode.
       </div>
     </div>`;
   document.getElementById('hdr-started').textContent = '';
 }
 
-function render(state) {
-  const tasks = state.tasks || {};
-  const scope = state.scope || Object.keys(tasks);
-  const total = scope.length;
+function renderCards(cards) {
+  const active = cards.active || [];
+  const total  = active.length;
 
-  const counts = { done:0, in_progress:0, pending:0, failed:0 };
-  scope.forEach(id => {
-    const s = (tasks[id] || {}).status || 'pending';
-    counts[s] = (counts[s] || 0) + 1;
-  });
+  document.getElementById('hdr-stats').style.display = total > 0 ? 'flex' : 'none';
+  document.getElementById('s-done').textContent    = active.filter(c => c.task_id).length;
+  document.getElementById('s-prog').textContent    = active.filter(c => c.session_id).length;
+  document.getElementById('s-pend').textContent    = active.filter(c => !c.session_id).length;
+  document.getElementById('s-fail').textContent    = 0;
+  document.getElementById('hdr-progress-label').textContent = `${total} card${total !== 1 ? 's' : ''}`;
+  document.getElementById('hdr-started').textContent = '';
 
-  document.getElementById('hdr-started').textContent =
-    state.started_at ? `${elapsed(state.started_at)} elapsed` : '';
-
-  if (total > 0) {
-    document.getElementById('hdr-progress-label').textContent = `${counts.done}/${total}`;
-  }
-
-  document.getElementById('hdr-stats').style.display = 'flex';
-  document.getElementById('s-done').textContent = counts.done;
-  document.getElementById('s-prog').textContent = counts.in_progress;
-  document.getElementById('s-pend').textContent = counts.pending;
-  document.getElementById('s-fail').textContent = counts.failed;
-
-  const ORDER = { in_progress:0, pending:1, done:2, failed:3 };
-  const ordered = [...scope].sort((a,b) =>
-    (ORDER[(tasks[a]||{}).status] ?? 4) - (ORDER[(tasks[b]||{}).status] ?? 4)
-  );
+  if (total === 0) { renderEmpty(); return; }
 
   const grid = document.getElementById('grid');
-  const existing = [...grid.querySelectorAll('.card')].map(c => c.id.replace('card-',''));
-  const needsRebuild = JSON.stringify(existing) !== JSON.stringify(ordered);
+  const cardIds = active.map(c => c.id);
+  const existing = [...grid.querySelectorAll('.task-card')].map(el => el.id.replace('card-',''));
+  const needsRebuild = JSON.stringify(existing) !== JSON.stringify(cardIds);
 
   if (needsRebuild) {
-    // Save scroll state before destroying DOM
+    // Save scroll state
     const scrollState = {};
-    ordered.forEach(id => {
+    cardIds.forEach(id => {
       const el = document.getElementById(`log-content-${id}`);
       if (el) scrollState[id] = {
         distFromBottom: el.scrollHeight - el.scrollTop - el.clientHeight,
@@ -1078,40 +3025,170 @@ function render(state) {
       };
     });
 
-    grid.innerHTML = ordered.map(id => renderCard(id, tasks[id] || {}, deps)).join('');
+    grid.innerHTML = active.map(renderWorkerCard).join('');
+    applyDirFilter();
+    buildDirFilter();
 
-    // Restore scroll positions and attach listeners on new elements
-    ordered.forEach(id => {
+    // Restore expanded state
+    if (expandedCard && document.getElementById(`card-${expandedCard}`)) {
+      document.getElementById(`card-${expandedCard}`).classList.add('expanded');
+      const bottomBar = document.getElementById('bottom-bar');
+      if (bottomBar) bottomBar.style.display = 'none';
+    }
+
+    // Restore chat inputs for cards with known sessions
+    active.forEach(card => {
+      if (card.session_id && (logViewMode[card.id] || 'session') === 'session') {
+        showChatInput(card.id, card.session_id);
+      }
+    });
+
+    // Restore scroll positions
+    cardIds.forEach(id => {
       const el = document.getElementById(`log-content-${id}`);
       if (!el) return;
       const prev = scrollState[id];
       if (prev) {
-        if (prev.pinned) {
-          el.scrollTop = el.scrollHeight;
-          logScrollPinned.add(id);
-        } else {
-          el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight - prev.distFromBottom);
-          logScrollPinned.delete(id);
-        }
+        if (prev.pinned) { el.scrollTop = el.scrollHeight; logScrollPinned.add(id); }
+        else { el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight - prev.distFromBottom); logScrollPinned.delete(id); }
       } else {
-        el.scrollTop = el.scrollHeight;  // brand new card — start at tail
+        el.scrollTop = el.scrollHeight;
       }
       attachScrollListener(id);
     });
   } else {
-    ordered.forEach(id => {
-      const card = document.getElementById(`card-${id}`);
-      if (!card) return;
-      const task = tasks[id] || {};
-      const badge = card.querySelector('.status-badge');
-      if (badge) badge.outerHTML = statusBadge(task.status || 'pending');
-      card.className = `card ${task.status || 'pending'}`;
-      const timer = document.getElementById(`timer-${id}`);
-      if (timer && task.started_at) timer.textContent = elapsed(task.started_at);
+    // Only update status badges
+    active.forEach(card => {
+      const el = document.getElementById(`card-${card.id}`);
+      if (!el) return;
+      const badge = el.querySelector('.status-badge');
+      const newStatus = card.session_id ? 'running' : 'pending';
+      if (badge) badge.outerHTML = statusBadge(newStatus);
     });
   }
 
   setTimeout(updateTopH, 50);
+}
+
+// ── Worker card spawn / close / history ───────────────────────────────────────
+
+let workerSpawnFormOpen = false;
+
+function toggleWorkerSpawnForm() {
+  workerSpawnFormOpen = !workerSpawnFormOpen;
+  const form = document.getElementById('worker-spawn-form');
+  if (form) form.style.display = workerSpawnFormOpen ? 'flex' : 'none';
+}
+
+let _worktreeFetchTimer = null;
+async function fetchWorktreesForDir(val) {
+  clearTimeout(_worktreeFetchTimer);
+  const sel = document.getElementById('worker-spawn-worktree-select');
+  if (!sel) return;
+  const dir = (val || '').trim();
+  if (!dir) { sel.style.display = 'none'; sel.innerHTML = ''; return; }
+  _worktreeFetchTimer = setTimeout(async () => {
+    try {
+      const r = await fetch('/api/fs/worktrees?dir=' + encodeURIComponent(dir));
+      if (!r.ok) { sel.style.display = 'none'; return; }
+      const list = await r.json();
+      if (!list.length) { sel.style.display = 'none'; sel.innerHTML = ''; return; }
+      sel.innerHTML = '<option value="">— pick a worktree —</option>' +
+        list.map(w => {
+          const name = w.path.split('/').pop();
+          const branch = w.branch ? ` (${w.branch})` : '';
+          return `<option value="${escHtml(name)}">${escHtml(name)}${escHtml(branch)}</option>`;
+        }).join('');
+      sel.style.display = 'block';
+    } catch (_) { sel.style.display = 'none'; }
+  }, 400);
+}
+
+async function spawnWorkerCard() {
+  const label    = document.getElementById('worker-spawn-label')?.value?.trim();
+  const dir      = document.getElementById('worker-spawn-dir')?.value?.trim();
+  const model    = document.getElementById('worker-spawn-model')?.value?.trim() || undefined;
+  const prompt   = document.getElementById('worker-spawn-prompt')?.value?.trim() || undefined;
+  const worktree = document.getElementById('worker-spawn-worktree')?.value?.trim() || undefined;
+  if (!label || !dir) { alert('Label and directory are required'); return; }
+  try {
+    const r = await fetch('/api/cards', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({label, dir, model, prompt, worktree}),
+    });
+    const d = await r.json();
+    if (!r.ok) { alert('Error: ' + (d.error || r.status)); return; }
+    // Clear form and close
+    document.getElementById('worker-spawn-label').value = '';
+    document.getElementById('worker-spawn-dir').value = '';
+    document.getElementById('worker-spawn-model').value = '';
+    document.getElementById('worker-spawn-prompt').value = '';
+    document.getElementById('worker-spawn-worktree').value = '';
+    const sel = document.getElementById('worker-spawn-worktree-select');
+    if (sel) { sel.innerHTML = ''; sel.style.display = 'none'; }
+    toggleWorkerSpawnForm();
+    // Immediate refresh to show the new card
+    await refresh();
+    await refreshAllLogs();
+  } catch (e) { alert('Request failed: ' + e.message); }
+}
+
+async function closeCard(cardId) {
+  try {
+    // Stop any active streams for this card
+    stopSessionStream(cardId);
+    stopLogStream(cardId);
+    stopDiffStream(cardId);
+    const r = await fetch(`/api/cards/${encodeURIComponent(cardId)}`, {method: 'DELETE'});
+    if (!r.ok) { const d = await r.json(); alert('Error: ' + (d.error || r.status)); return; }
+    // Remove only this card's DOM element — avoids re-rendering surviving cards to "loading…"
+    const el = document.getElementById(`card-${cardId}`);
+    if (el) el.remove();
+    // Update local state so the next tick's renderCards sees the correct IDs and skips rebuild
+    if (cardsState) {
+      const moved = cardsState.active.find(c => c.id === cardId);
+      cardsState.active = cardsState.active.filter(c => c.id !== cardId);
+      if (moved) cardsState.history = [moved, ...(cardsState.history || [])];
+    }
+    // Sync header counters without rebuilding the grid
+    if (cardsState) renderCards(cardsState);
+    // Background sync to pick up any server-side changes
+    refresh();
+  } catch (e) { alert('Request failed: ' + e.message); }
+}
+
+async function restoreCard(cardId) {
+  try {
+    const r = await fetch(`/api/cards/${encodeURIComponent(cardId)}/restore`, {method: 'POST'});
+    if (!r.ok) { const d = await r.json(); alert('Error: ' + (d.error || r.status)); return; }
+    await refresh();
+    await refreshAllLogs();
+  } catch (e) { alert('Request failed: ' + e.message); }
+}
+
+function toggleHistoryDropdown() {
+  const dd = document.getElementById('history-dropdown');
+  if (!dd) return;
+  const isOpen = dd.style.display === 'block';
+  if (!isOpen) {
+    // Populate with history cards
+    const history = cardsState?.history || [];
+    if (!history.length) {
+      dd.innerHTML = '<div style="padding:8px 12px;color:var(--dim);font-size:11px">No history</div>';
+    } else {
+      dd.innerHTML = history.map(c => `
+        <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-bottom:1px solid var(--border);font-size:11px">
+          <span style="flex:1;color:var(--fg)">${escHtml(c.label)}</span>
+          <span style="color:var(--muted);font-size:10px">${escHtml((c.dir||'').split('/').pop())}</span>
+          <button onclick="restoreCard('${c.id}')"
+            style="font-size:10px;padding:2px 7px;border:1px solid var(--blue);border-radius:3px;background:transparent;color:var(--blue);cursor:pointer">restore</button>
+        </div>`).join('');
+    }
+    dd.style.display = 'block';
+  } else {
+    dd.style.display = 'none';
+  }
 }
 
 // ── Countdown ticker ──────────────────────────────────────────────────────────
@@ -1122,21 +3199,14 @@ async function tick() {
     countdown = REFRESH_MS / 1000;
     await Promise.all([refresh(), refreshAllLogs()]);
   }
-
-  if (swarmState) {
-    Object.entries(swarmState.tasks || {}).forEach(([id, task]) => {
-      if (task.started_at) {
-        const el = document.getElementById(`timer-${id}`);
-        if (el) el.textContent = elapsed(task.started_at);
-      }
-    });
-  }
 }
 
 // ── Settings panel ────────────────────────────────────────────────────────────
 let settingsOpen = false;
 let settingsModels = [];
 let settingsCurrentModel = '';
+let settingsCurrentAgent = '';
+let settingsCurrentVariant = '';
 
 async function toggleSettings() {
   if (settingsOpen) { closeSettings(); return; }
@@ -1154,87 +3224,181 @@ function closeSettings() {
   document.getElementById('settings-btn').classList.remove('active');
 }
 
+// ── Chat toolbar component ────────────────────────────────────────────────────
+// Renders the model/agent/variant/thinking selector strip.
+// prefix: 'orch' | 'card-<taskId>'  — used to namespace element IDs.
+function renderChatToolbar(prefix) {
+  return `<div class="chat-toolbar" id="${prefix}-toolbar">
+    <select class="ct-select" id="${prefix}-model-sel" title="model">
+      <option value="">default model</option>
+    </select>
+    <select class="ct-select" id="${prefix}-agent-sel" title="agent">
+      <option value="">default agent</option>
+      <option value="build">build</option>
+      <option value="plan">plan</option>
+      <option value="explore">explore</option>
+      <option value="general">general</option>
+    </select>
+    <select class="ct-select" id="${prefix}-variant-sel" title="reasoning effort">
+      <option value="">default effort</option>
+      <option value="minimal">minimal</option>
+      <option value="high">high</option>
+      <option value="max">max</option>
+    </select>
+    <label class="ct-toggle" title="extended thinking blocks">
+      <input type="checkbox" id="${prefix}-thinking"> thinking
+    </label>
+  </div>`;
+}
+
+// Populate a toolbar's selects with models + current settings defaults.
+// Mounts HTML into the toolbar-mount div if the toolbar hasn't been injected yet.
+function mountChatToolbar(prefix) {
+  const mount = document.getElementById(`${prefix}-toolbar-mount`);
+  if (mount && !document.getElementById(`${prefix}-toolbar`)) {
+    mount.innerHTML = renderChatToolbar(prefix);
+  }
+}
+
+function populateChatToolbar(prefix) {
+  mountChatToolbar(prefix);
+  const modelSel   = document.getElementById(`${prefix}-model-sel`);
+  const agentSel   = document.getElementById(`${prefix}-agent-sel`);
+  const variantSel = document.getElementById(`${prefix}-variant-sel`);
+  if (modelSel && settingsModels.length) {
+    populateModelSelect(modelSel, settingsModels, settingsCurrentModel);
+    // Ensure blank "default" option is first
+    if (!modelSel.querySelector('option[value=""]')) {
+      const blank = document.createElement('option');
+      blank.value = ''; blank.textContent = 'default model';
+      modelSel.insertBefore(blank, modelSel.firstChild);
+    }
+  }
+  if (agentSel)   agentSel.value   = settingsCurrentAgent;
+  if (variantSel) variantSel.value = settingsCurrentVariant;
+}
+
+// Populate every toolbar currently in the DOM.
+function populateAllToolbars() {
+  populateChatToolbar('orch');
+  for (const card of (cardsState?.active || [])) {
+    populateChatToolbar(`card-${card.id}`);
+  }
+}
+
+// Read toolbar option values into an opts object for sendMessage().
+function readToolbarOpts(prefix) {
+  const opts = {};
+  const modelSel   = document.getElementById(`${prefix}-model-sel`);
+  const agentSel   = document.getElementById(`${prefix}-agent-sel`);
+  const variantSel = document.getElementById(`${prefix}-variant-sel`);
+  const thinkingCb = document.getElementById(`${prefix}-thinking`);
+  if (modelSel?.value)     opts.model   = modelSel.value;
+  if (agentSel?.value)     opts.agent   = agentSel.value;
+  if (variantSel?.value)   opts.variant = variantSel.value;
+  if (thinkingCb?.checked) opts.thinking = true;
+  return opts;
+}
+
+async function loadModels() {
+  try {
+    const models = await fetch('/api/models').then(r => r.json());
+    if (!Array.isArray(models) || !models.length) return;
+    settingsModels = models;
+    const sel = document.getElementById('model-select');
+    if (sel) populateModelSelect(sel, settingsModels, settingsCurrentModel);
+    populateAllToolbars();
+  } catch { /* silent */ }
+}
+
 async function loadSettingsData() {
   const sel = document.getElementById('model-select');
   sel.innerHTML = '<option value="">loading…</option>';
   document.getElementById('settings-status').textContent = '';
 
-  // Fetch current setting and model list in parallel
-  const [settingsRes, modelsRes] = await Promise.allSettled([
-    fetch('/api/settings').then(r => r.json()),
-    fetch('/api/models').then(r => r.json()),
-  ]);
+  const settingsRes = await fetch('/api/settings').then(r => r.json()).catch(() => ({}));
+  const current = settingsRes?.model || '';
+  settingsCurrentModel   = current;
+  settingsCurrentAgent   = settingsRes?.agent   || '';
+  settingsCurrentVariant = settingsRes?.variant || '';
 
-  const current = (settingsRes.status === 'fulfilled' && settingsRes.value?.model)
-    ? settingsRes.value.model : '';
-  settingsCurrentModel = current;
+  const agentSel   = document.getElementById('settings-agent-select');
+  const variantSel = document.getElementById('settings-variant-select');
+  if (agentSel)   agentSel.value   = settingsCurrentAgent;
+  if (variantSel) variantSel.value = settingsCurrentVariant;
 
-  if (modelsRes.status !== 'fulfilled' || !Array.isArray(modelsRes.value) || modelsRes.value.length === 0) {
-    sel.innerHTML = `<option value="">failed to load models</option>`;
-    document.getElementById('settings-status').innerHTML =
-      `<span style="color:var(--red)">could not load model list</span>
-       <button class="icon-btn" style="margin-left:8px;font-size:9px;padding:2px 6px"
-         onclick="loadSettingsData()">retry</button>`;
-    return;
+  // Try to load models into the dropdown
+  await loadModels();
+  if (!settingsModels.length) {
+    // Fallback: hide select, show manual text input
+    sel.style.display = 'none';
+    const manual = document.getElementById('model-input-manual');
+    if (manual) { manual.style.display = ''; manual.value = current; }
+    const statusEl = document.getElementById('models-load-status');
+    if (statusEl) statusEl.innerHTML =
+      ' — <span style="color:var(--yellow)">could not reach opencode; type a model ID manually</span>';
+  } else {
+    sel.style.display = '';
+    const manual = document.getElementById('model-input-manual');
+    if (manual) manual.style.display = 'none';
   }
-
-  settingsModels = modelsRes.value;
-  populateModelSelect(sel, settingsModels, current);
 }
 
 function populateModelSelect(sel, models, selected) {
-  // Group by provider (prefix before first '/')
   const groups = {};
   for (const m of models) {
     const slash = m.indexOf('/');
     const provider = slash > -1 ? m.slice(0, slash) : 'other';
     (groups[provider] = groups[provider] || []).push(m);
   }
-
   sel.innerHTML = '';
   for (const [provider, items] of Object.entries(groups)) {
     const grp = document.createElement('optgroup');
     grp.label = provider;
     for (const m of items) {
       const opt = document.createElement('option');
-      opt.value = m;
-      opt.textContent = m;
+      opt.value = m; opt.textContent = m;
       if (m === selected) opt.selected = true;
       grp.appendChild(opt);
     }
     sel.appendChild(grp);
   }
-
-  // If nothing matched, add current as a manual entry
   if (selected && !models.includes(selected)) {
     const opt = document.createElement('option');
-    opt.value = selected;
-    opt.textContent = selected + ' (current)';
-    opt.selected = true;
+    opt.value = selected; opt.textContent = selected + ' (current)'; opt.selected = true;
     sel.prepend(opt);
   }
 }
 
 async function saveSettings() {
-  const sel = document.getElementById('model-select');
   const btn = document.getElementById('settings-save-btn');
   const status = document.getElementById('settings-status');
-  const model = sel.value;
-  if (!model) return;
+  const model = (document.getElementById('model-select')?.value ||
+                  document.getElementById('model-input-manual')?.value || '').trim();
+  const agent   = document.getElementById('settings-agent-select')?.value || '';
+  const variant = document.getElementById('settings-variant-select')?.value || '';
+  if (!model) { status.textContent = 'enter a model ID'; status.style.color = 'var(--red)'; return; }
 
   btn.disabled = true;
   status.textContent = 'saving…';
   status.style.color = 'var(--dim)';
 
   try {
+    const payload = { model, autonomous: autonomousMode };
+    if (agent)   payload.agent   = agent;
+    if (variant) payload.variant = variant;
     const r = await fetch('/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model }),
+      body: JSON.stringify(payload),
     });
     const data = await r.json();
     if (data.ok) {
-      settingsCurrentModel = model;
+      settingsCurrentModel   = model;
+      settingsCurrentAgent   = agent;
+      settingsCurrentVariant = variant;
+      // Push new defaults into all visible toolbars
+      populateAllToolbars();
       btn.classList.add('saved');
       btn.textContent = 'saved ✓';
       status.textContent = model;
@@ -1254,15 +3418,47 @@ async function saveSettings() {
   }
 }
 
-// ── Boot ──────────────────────────────────────────────────────────────────────
+
+
 (async () => {
-  await fetchDeps();
-  await refresh();
+  // Mount orch toolbar immediately so it's available before panel opens
+  mountChatToolbar('orch');
+  // Pre-fetch settings so toolbar defaults and autonomous toggle are applied at boot
+  try {
+    const s = await fetch('/api/settings').then(r => r.json());
+    settingsCurrentModel   = s.model   || '';
+    settingsCurrentAgent   = s.agent   || '';
+    settingsCurrentVariant = s.variant || '';
+    // Sync settings panel inputs if already in DOM
+    const modelSel = document.getElementById('model-select');
+    const agentSel = document.getElementById('settings-agent-select');
+    const variantSel = document.getElementById('settings-variant-select');
+    if (modelSel && settingsCurrentModel) populateModelSelect(modelSel, [], settingsCurrentModel);
+    if (agentSel)   agentSel.value   = settingsCurrentAgent;
+    if (variantSel) variantSel.value = settingsCurrentVariant;
+    // Apply autonomous toggle
+    autonomousMode = s.autonomous !== false; // default true
+    const cb = document.getElementById('autonomous-checkbox');
+    if (cb) cb.checked = autonomousMode;
+  } catch { /* non-fatal */ }
+  await Promise.all([refresh(), loadModels(), loadOrchProjects()]);
   await refreshAllLogs();
-  // Attach scroll listeners to any cards already in the DOM
-  if (swarmState) Object.keys(swarmState.tasks || {}).forEach(attachScrollListener);
+  buildDirFilter();
   setInterval(tick, 1000);
   window.addEventListener('resize', updateTopH);
+  // Close dropdowns on outside click
+  document.addEventListener('click', e => {
+    if (!document.getElementById('dir-filter-wrap')?.contains(e.target)) {
+      const dd = document.getElementById('dir-filter-dropdown');
+      if (dd) dd.style.display = 'none';
+      const btn = document.getElementById('dir-filter-btn');
+      if (btn && !btn.textContent.includes('/')) btn.textContent = 'all directories ▾';
+    }
+    if (!e.target.closest('[onclick*="toggleHistoryDropdown"]')) {
+      const hdd = document.getElementById('history-dropdown');
+      if (hdd && !hdd.contains(e.target)) hdd.style.display = 'none';
+    }
+  });
 })();
 </script>
 </body>
