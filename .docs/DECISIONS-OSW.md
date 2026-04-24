@@ -2,7 +2,7 @@
 
 # DECISIONS [OSW]
 
-> **Related:** [DESIGN](DESIGN.md) · [ORCHESTRATOR_REDESIGN](ORCHESTRATOR_REDESIGN.md) · [SPEC_V2](SPEC_V2.md)
+> **Related:** [ORCHESTRATOR_REDESIGN](ORCHESTRATOR_REDESIGN.md) · [SPEC_V2](SPEC_V2.md) · [DASHBOARD DECISIONS](dashboard/DECISIONS.md)
 
 ADR-001 [OSW]: opencode REST API as Session Backend (2026-04-22, Accepted)
 ADR-002 [OSW]: Direct Orch Session Lookup — Hermes Layer Removed (2026-04-22, Accepted)

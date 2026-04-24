@@ -2,7 +2,7 @@
 
 # ROADMAP [DASHBOARD MIGRATION]
 
-> **Related:** [ARCHITECTURE](../../ARCHITECTURE.md) · [DECISIONS](../../DECISIONS.md) · [DESIGN](../../DESIGN.md) · [PHILOSOPHY](../../PHILOSOPHY.md)
+> **Related:** [ARCHITECTURE](../../ARCHITECTURE.md) · [DECISIONS](../../DECISIONS.md) · [DESIGN](../../DESIGN.md) · [PHILOSOPHY](../../PHILOSOPHY.md) · [OSW DECISIONS](../../../DECISIONS-OSW.md)
 
 Single source of truth for the Svelte migration. Each phase has an exit
 criterion that must pass before moving on.
