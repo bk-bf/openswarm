@@ -17,6 +17,7 @@ server.py                — dashboard HTTP server
 swarm.sh                 — interactive launcher
 prompts/                 — prompt templates for worker/investigator sessions
 state.json.template      — reference only; never edit state.json directly
+opencode.jsonc.template  — OpenCode agent definitions (dispatcher, orchestrator)
 openswarm.service        — systemd unit (orchestrator)
 openswarm-dashboard.service — systemd unit (dashboard)
 ```
@@ -154,6 +155,22 @@ The orchestrator has a built-in two-stage retry mechanism:
 When debugging a permanently failed task, the investigator diagnosis in
 `state.json` (field `investigator_diagnosis`) and the output file are the
 primary artefacts. Read them before touching any code.
+
+## Docs (`.docs/`)
+
+`.docs/` is the documentation root for this repo.
+
+| File               | Scope                                               |
+| ------------------ | --------------------------------------------------- |
+| `bugs/BUGS.md`     | Known bugs and attempted fixes; remove when resolved |
+| `DESIGN.md`        | UI design principles for `dashboard.html` — viewport efficiency, no nested borders, no wasted padding |
+
+**Rules:**
+
+- Update docs only when explicitly asked or when a bug is confirmed resolved.
+- Always use `YYYY-MM-DD` date format.
+- Every doc starts with a `<!-- LOC cap: N (created: YYYY-MM-DD) -->` comment.
+- Keep entries brief — this project is early-stage, no elaborate structure needed.
 
 ## Verification before declaring work done
 
