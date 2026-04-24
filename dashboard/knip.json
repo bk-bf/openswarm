@@ -1,0 +1,10 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": ["src/routes/**/*.{svelte,ts}", "src/lib/**/*.{svelte,ts}"],
+  "project": ["src/**/*.{svelte,ts}"],
+  "ignoreDependencies": [
+    "@opencode-ai/sdk",
+    "marked",
+    "shiki"
+  ]
+}
