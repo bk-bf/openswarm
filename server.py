@@ -36,6 +36,9 @@ from pathlib import Path
 PORT = int(os.environ.get("OPENSWARM_PORT", 7700))
 OPENCODE_API = os.environ.get("OPENCODE_API", "http://localhost:4097")
 BASE_DIR = Path(__file__).parent.resolve()
+NEW_DASHBOARD = (
+    "--new-dashboard" in sys.argv
+)  # serve dashboard/build/ instead of dashboard.html
 SETTINGS_FILE = BASE_DIR / "settings.json"
 OPENCODE_DB = Path(
     os.environ.get(
@@ -854,7 +857,10 @@ def api_post_settings(body: bytes) -> tuple[int, dict]:
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=str(BASE_DIR), **kwargs)
+        serve_dir = (
+            str(BASE_DIR / "dashboard" / "build") if NEW_DASHBOARD else str(BASE_DIR)
+        )
+        super().__init__(*args, directory=serve_dir, **kwargs)
 
     def log_message(self, fmt, *args):
         # Suppress per-request noise; keep errors
@@ -1025,9 +1031,22 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             _oc_proxy("GET", oc_path, self)
 
         elif path in ("/", "/index.html"):
-            self.send_response(302)
-            self.send_header("Location", "/dashboard.html")
-            self.end_headers()
+            if NEW_DASHBOARD:
+                # SPA — serve dashboard/build/index.html
+                index = BASE_DIR / "dashboard" / "build" / "index.html"
+                if index.exists():
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html")
+                    self.end_headers()
+                    self.wfile.write(index.read_bytes())
+                else:
+                    self.send_error(
+                        503, "New dashboard not built — run: cd dashboard && pnpm build"
+                    )
+            else:
+                self.send_response(302)
+                self.send_header("Location", "/dashboard.html")
+                self.end_headers()
 
         else:
             super().do_GET()
@@ -1192,7 +1211,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 _WATCH_FILES = [
     Path(__file__).resolve(),  # server.py
-    Path(__file__).parent / "dashboard.html",  # dashboard UI
+    *(
+        [BASE_DIR / "dashboard" / "build" / "index.html"]
+        if NEW_DASHBOARD
+        else [BASE_DIR / "dashboard.html"]
+    ),
 ]
 
 
@@ -1215,7 +1238,12 @@ def _hot_reload_watcher(server: http.server.HTTPServer) -> None:
 
 if __name__ == "__main__":
     server = http.server.ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    print(f"openswarm dashboard → http://0.0.0.0:{PORT}", flush=True)
+    mode = (
+        "new dashboard (dashboard/build/)"
+        if NEW_DASHBOARD
+        else "legacy dashboard (dashboard.html)"
+    )
+    print(f"openswarm dashboard [{mode}] → http://0.0.0.0:{PORT}", flush=True)
     watcher = threading.Thread(target=_hot_reload_watcher, args=(server,), daemon=True)
     watcher.start()
     try:
