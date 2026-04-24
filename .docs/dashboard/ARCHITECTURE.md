@@ -2,7 +2,7 @@
 
 # ARCHITECTURE [DASHBOARD]
 
-> **Related:** [DECISIONS](DECISIONS.md) · [DESIGN](DESIGN.md) · [PHILOSOPHY](PHILOSOPHY.md) · [BUGS](bugs/BUGS.md) · [ROADMAP](features/open/ROADMAP.md)
+> **Related:** [DECISIONS](DECISIONS.md) · [DESIGN](DESIGN.md) · [PHILOSOPHY](PHILOSOPHY.md) · [BUGS](../bugs/BUGS.md) · [ROADMAP](features/open/ROADMAP.md)
 
 ## Runtime Shape
 
