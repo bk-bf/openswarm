@@ -98,6 +98,12 @@ else, tell the user the exact command to run.
 ## Git rules
 
 - **Never commit or push unprompted.** Wait for an explicit instruction.
+- **Once commits are authorised for a task, commit after each logical unit of
+  work** — do not batch multiple features/fixes into one commit or let
+  uncommitted changes pile up across a session. A "logical unit" is one
+  coherent change that would stand on its own in `git log`: a single file
+  scaffolded, a single bug fixed, a single component ported. When following a
+  phased roadmap, prefer the commit shapes listed in that roadmap.
 - Always use `YYYY-MM-DD` date format in comments and docs.
 - Work on `main` only — there is no PR workflow for this repo.
 - `.gitignore` covers `state.json`, `swarm.env`, `logs/`, `reports/`, and
