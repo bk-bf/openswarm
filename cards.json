@@ -1,0 +1,86 @@
+{
+  "active": [
+    {
+      "id": "25e427a4",
+      "label": "ux fix",
+      "dir": "/home/ubuntu/server/openswarm",
+      "worktree": "ux-fixes",
+      "project_id": null,
+      "task_id": null,
+      "created_at": "2026-04-23T22:18:03.775392+00:00",
+      "session_id": "ses_242866a66ffeL1k2c2m1w8P47X"
+    }
+  ],
+  "history": [
+    {
+      "id": "32ac3d86",
+      "label": "UI fixes",
+      "dir": "/home/ubuntu/server/openswarm",
+      "worktree": "ux-fixes",
+      "project_id": null,
+      "task_id": null,
+      "created_at": "2026-04-23T21:38:43.865365+00:00",
+      "closed_at": "2026-04-24T04:14:28.363591+00:00"
+    },
+    {
+      "id": "12d4aa31",
+      "label": "ux fix",
+      "dir": "/home/ubuntu/server/openswarm",
+      "worktree": "ux-fixes",
+      "project_id": null,
+      "task_id": null,
+      "created_at": "2026-04-24T02:12:49.931636+00:00",
+      "closed_at": "2026-04-24T04:14:12.733442+00:00"
+    },
+    {
+      "id": "4f151fe3",
+      "label": "ux fixes",
+      "dir": "/home/ubuntu/server/openswarm",
+      "worktree": "ux-fixes",
+      "project_id": null,
+      "task_id": null,
+      "created_at": "2026-04-24T02:31:06.668993+00:00",
+      "closed_at": "2026-04-24T04:13:42.432209+00:00"
+    },
+    {
+      "id": "0f56b34b",
+      "label": "T-212 btc dominance (server)",
+      "dir": "/home/ubuntu/server/yact/yact-server/features/t-212-btc-dominance",
+      "worktree": "features/t-212-btc-dominance",
+      "project_id": "7b99bb70",
+      "task_id": "T-212",
+      "created_at": "2026-04-22T01:40:59.597646+00:00",
+      "closed_at": "2026-04-23T21:37:48.818136+00:00"
+    },
+    {
+      "id": "9c44541c",
+      "label": "T-211 surface funding rates",
+      "dir": "/home/ubuntu/server/yact/yact-web/features/t-211-surface-funding-rates",
+      "worktree": "features/t-211-surface-funding-rates",
+      "project_id": "7b99bb70",
+      "task_id": "T-211",
+      "created_at": "2026-04-22T01:40:59.597646+00:00",
+      "closed_at": "2026-04-23T21:37:47.845382+00:00"
+    },
+    {
+      "id": "ca494ef6",
+      "label": "T-210 surface OI",
+      "dir": "/home/ubuntu/server/yact/yact-web/features/t-210-surface-oi",
+      "worktree": "features/t-210-surface-oi",
+      "project_id": "7b99bb70",
+      "task_id": "T-210",
+      "created_at": "2026-04-22T01:40:59.597646+00:00",
+      "closed_at": "2026-04-23T21:37:47.123484+00:00"
+    },
+    {
+      "id": "750e3b02",
+      "label": "T-212 btc dominance (web)",
+      "dir": "/home/ubuntu/server/yact/yact-web/features/t-212-btc-dominance",
+      "worktree": "features/t-212-btc-dominance",
+      "project_id": "7b99bb70",
+      "task_id": "T-212",
+      "created_at": "2026-04-22T01:40:59.597646+00:00",
+      "closed_at": "2026-04-22T01:56:40.664512+00:00"
+    }
+  ]
+}

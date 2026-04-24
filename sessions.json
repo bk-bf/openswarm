@@ -1,0 +1,18 @@
+[
+  {
+    "id": "7b99bb70",
+    "dir": "/home/ubuntu/server/yact",
+    "label": "yact",
+    "skill": "openswarm-7b99bb70",
+    "cron_job_id": "713db8009d1d",
+    "created_at": "2026-04-21T23:12:24.297529+00:00"
+  },
+  {
+    "id": "3afce2fc",
+    "dir": "/home/ubuntu/server/openswarm",
+    "label": "openswarm",
+    "skill": "openswarm-3afce2fc",
+    "cron_job_id": "37b944e844d8",
+    "created_at": "2026-04-22T00:39:21.131192+00:00"
+  }
+]
