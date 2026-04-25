@@ -11,7 +11,7 @@ WorkingDirectory=/home/ubuntu/server/openswarm
 Environment=HOME=/home/agent
 Environment=PATH=/home/agent/.local/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=python3 /home/ubuntu/server/openswarm/server.py
-Restart=always
+Restart=on-failure
 RestartSec=5
 
 # Resource limits
