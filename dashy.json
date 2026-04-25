@@ -1,0 +1,25 @@
+{
+  "project": "openswarm",
+  "worktree": null,
+  "services": [
+    {
+      "id": "openswarm-dashboard",
+      "name": "Dashboard · legacy",
+      "port": 7700,
+      "pid_file": null,
+      "start_cmd": "sudo systemctl start openswarm-dashboard hermes-gateway",
+      "stop_cmd": "sudo systemctl stop hermes-gateway openswarm-dashboard",
+      "cwd": "/home/ubuntu/server/openswarm"
+    },
+    {
+      "id": "openswarm-dashboard-dev",
+      "name": "Dashboard · dev",
+      "port": 7701,
+      "pid_file": "/home/ubuntu/server/openswarm/.pids/dashboard-dev.pid",
+      "start_cmd": "mkdir -p /home/ubuntu/server/openswarm/.pids && bash /home/ubuntu/server/openswarm/start-dev.sh",
+      "stop_cmd": "bash /home/ubuntu/server/openswarm/start-dev.sh stop",
+      "cwd": "/home/ubuntu/server/openswarm",
+      "log_file": "/home/ubuntu/server/openswarm/dashboard/logs/dev.log"
+    }
+  ]
+}
